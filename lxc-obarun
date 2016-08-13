@@ -183,8 +183,8 @@ customize_cont() {
 	
 	chroot "${cont_rootfs}" "${src_functions}"/customizeCont || die " Failed to enter on ${cont_rootfs} or Failed to execute the script customizeCont"
 	
-	#conf_console
-	conf_console_debian
+	conf_console
+	#conf_console_debian
 	return 0
 }
 conf_console(){
