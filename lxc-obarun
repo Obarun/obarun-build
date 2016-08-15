@@ -17,14 +17,16 @@
 # functions file for obarun-build package
 
 source /usr/lib/obarun/common_functions
+source /etc/obarun/build.conf
 
-trap "clean"  TERM HUP QUIT INT ERR KILL STOP 
+trap "clean_install"  TERM HUP QUIT INT ERR KILL STOP 
 
-clean() {
-    echo_error "Interrupted, cleaning up"
+clean_install() {
+    echo_display " Cleaning up"
     lxc-destroy -n "${name}"
     rm -rf "${cont_path}"
-    exit 1
+    destroy_network
+    exit
 }
 
 # Detect use under userns (unsupported)
@@ -42,45 +44,6 @@ export PATH=$PATH:/usr/local/bin:/usr/bin:/sbin:/bin
 
 # Ensure strict root's umask doesn't render the VM unusable
 umask 022
-
-
-
-# defaults
-
-arch="x86_64"
-name="buildpkg"
-cont_path="/var/cache/obarun/pkgbuild/${name}"
-cont_rootfs="/var/cache/obarun/pkgbuild/${name}/rootfs"
-#cont_path="/var/lib/lxc/${name}"
-#cont_rootfs="/var/lib/lxc/${name}/rootfs"
-_cont_conf="/var/lib/lxc/${name}"
-
-
-pac_conf="/var/lib/obarun/obarun-build/pacman.conf"
-lxc_conf="/var/lib/obarun/obarun-build/build_lxc.conf"
-pac_list=$(grep -h -v ^# /var/lib/obarun/obarun-build/container.list)
-src_functions="/etc"
-
-router_addr="192.168.178.1"
-host_interface="enp2s0"
-host_addr='192.168.178.2/24'
-bridge_interface="lxc-nat"
-bridge_addr='192.168.178.3/24'
-lxc_network_type="veth"
-lxc_network_link="${bridge_interface}"
-lxc_network_flags="up"
-lxc_network_ipv4="192.168.178.4/24"
-lxc_network_ipv4_gateway="${router_addr}"
-lxc_network_name="eth0"
-
-hostname="buildcont"
-locale="fr_FR.UTF-8"
-zone="Indian"
-subzone="Reunion"
-keymap="fr"
-newuser="userbuild"
-passw_root="toor"
-passw_user="toor"
 
 if [ -z "$arch" ]; then
 	case "$(uname -m)" in
@@ -124,6 +87,17 @@ destroy_network(){
 	ip route add default via "${router_addr}"
 }
 
+create_dir(){
+	
+	echo_notvalid " Create needed directory in ${cont_rootfs}"
+	mkdir -m 0755 -p "${cont_rootfs}"/var/{cache/pacman/pkg,lib/pacman,lib/pacman/sync,log} "${cont_rootfs}"/{dev,run,etc,etc/pacman.d}
+	mkdir -m 0755 -p "${cont_rootfs}"/dev/{pts,shm}
+	mkdir -m 1777 -p "${cont_rootfs}"/tmp
+	mkdir -m 0555 -p "${cont_rootfs}"/{sys,proc}
+	
+	return 0
+}
+
 pac_file(){
 	
 	if [[ -d /etc/pacman.d/gnupg && ! -d $cont_rootfs/etc/pacman.d/gnupg ]]; then
@@ -134,46 +108,33 @@ pac_file(){
 	echo_display " Copying mirrorlist"
 	cp -af /etc/pacman.d/mirrorlist "${cont_rootfs}/etc/pacman.d/" || die " Impossible to copy mirrorlist list"
 	
-	echo_display " Copying pacman.conf"
-	cp -f "/var/lib/obarun/obarun-build/pacman.conf" "${cont_rootfs}/etc" || die " Impossible to copy file pacman.conf"
-	
 	echo_display " Copying pacman database"
 	cp -f "/var/lib/pacman/sync/"*.* "${cont_rootfs}/var/lib/pacman/sync/" || die " Impossible to copy pacman database"
 	
 	return 0 
 }
 
-create_dir(){
-	echo_display " Check for needed directory"
-	if ! [ -d "${cont_rootfs}/proc" ]; then 
-		echo_notvalid " Create needed directory in ${cont_rootfs}"
-		mkdir -m 0755 -p "${cont_rootfs}"/var/{cache/pacman/pkg,lib/pacman,lib/pacman/sync,log} "${cont_rootfs}"/{dev,run,etc,etc/pacman.d}
-		mkdir -m 0755 -p "${cont_rootfs}"/dev/{pts,shm}
-		mkdir -m 1777 -p "${cont_rootfs}"/tmp
-		mkdir -m 0555 -p "${cont_rootfs}"/{sys,proc}
-	else
-		echo_valid " Directory needed already exists"
-	fi
-	
-	return 0
-}
 
 
 # install packages within container 
 install_cont() {
 	create_dir
 	pac_file
-    pacman -r "${cont_rootfs}" -S $(grep -h -v ^# /var/lib/obarun/obarun-build/container.list) --noconfirm || die " Impossible to install packages"
-    
-
+    pacman -r "${cont_rootfs}" -S $(grep -h -v ^# /var/lib/obarun/obarun-build/container.list) --noconfirm --config "${pac_conf}" --gpgdir "${gpg_dir}" || die " Impossible to install packages"
+  
     return 0
 }
 
 # customize container
 customize_cont() {
+	
+	mkdir -p "${cont_rootfs}""${src_functions}"
 			
 	echo_display " Copying customizeCont"
-	cp -f "/var/lib/obarun/obarun-build/customizeCont" "${cont_rootfs}"/"$src_functions"/ || die " Impossible to copy file customizeCont" #"$cont_rootfs$src_functions/customizeCont"
+	cp -f "/var/lib/obarun/obarun-build/customizeCont" "${cont_rootfs}""${src_functions}" || die " Impossible to copy file customizeCont" #"$cont_rootfs$src_functions/customizeCont"
+	
+	echo_display " Copying build.conf"
+	cp -f "/etc/obarun/build.conf" "${cont_rootfs}""${src_functions}" || die " Impossible to copy build.conf"
 	
 	echo_display " Copying locale file at ${cont_rootfs}/etc/"  
     cp -fp /etc/locale.conf /etc/locale.gen "${cont_rootfs}/etc/" || die " Impossible to copy locale file"
@@ -181,42 +142,45 @@ customize_cont() {
 	echo_display " Copy resolv.conf in ${cont_rootfs}"
 	cp -f /etc/resolv.conf "${cont_rootfs}/etc/resolv.conf" || die " Impossible to copy the file resolv.conf"
 	
+	echo_display " Copy pacman.conf in ${cont_rootfs}"
+	cp -f "${pac_conf}" "${cont_rootfs}"/etc || die " Impossible to copy the file ${pac_conf}"
+	
 	chroot "${cont_rootfs}" "${src_functions}"/customizeCont || die " Failed to enter on ${cont_rootfs} or Failed to execute the script customizeCont"
 	
 	conf_console
-	#conf_console_debian
+	
 	return 0
 }
 conf_console(){
-	    # enable getty on active ttys
+	
+	# enable getty on active ttys
     local nttys=$(cat "${lxc_conf}" | grep "^lxc.tty" | head -n1 | cut -d= -f2 | tr -d "[:blank:]")
     local devttydir=$(cat "${lxc_conf}" | grep "^lxc.devttydir" | head -n1 | cut -d= -f2 | tr -d "[:blank:]")
     local devtty=""
+    
     # bind getty instances to /dev/<devttydir>/tty* if lxc.devttydir is set
-    [ -n "${devttydir}" ] && devtty="${devttydir}-"
-
+    if [[ -n "${devttydir}" ]]; then
+		devtty="${devttydir}-"
+		echo "${devttydir}/console" >> "${cont_rootfs}/etc/securetty" || die " Impossible to set ${devttydir}/console in ${cont_rootfs}/etc/securetty"
+	fi
+    
     # update securetty to allow console login if devttydir is set
     if [ -n "${devttydir}" ]; then
         for i in $(seq 1 ${nttys:-1}); do
-            echo "${devttydir}/tty${i}" >> "${cont_rootfs}/etc/securetty"
+            echo "${devttydir}/tty${i}" >> "${cont_rootfs}/etc/securetty" || die " Impossible to set ${devttydir}/tty${i} in ${cont_rootfs}/etc/securetty"
         done
     fi
-    [ -n "${devttydir}" ] && echo "${devttydir}/console" >> "${cont_rootfs}/etc/securetty"
 	
-	#echo "# For libvirt/Virtual Machine Monitor" >>${cont_rootfs}/etc/securetty
-    #echo "pts/0"        >>${cont_rootfs}/etc/securetty
+	# optional here, do not die if an error is created
+	echo "# For libvirt/Virtual Machine Monitor" >>${cont_rootfs}/etc/securetty
+    echo "pts/0"        >>${cont_rootfs}/etc/securetty
+    
+    return 0
 }
-conf_console_debian(){
-	local num_tty=4
-	for tty in $(seq 1 "$num_tty"); do
-        if [ ! -e "$cont_rootfs/dev/tty$tty" ]; then
-            mknod -m 666 "$cont_rootfs/dev/tty$tty" c 4 "$tty" || die "debian conf fail"
-        fi
-done
 
-}
 # Write container configuration files
 cont_conf() {
+	
     mkdir -p "${_cont_conf}" || die " Impossible to make directory ${_cont_conf}"
     local config="${_cont_conf}/config"
    
@@ -228,21 +192,26 @@ cont_conf() {
     if [ -e "${lxc_conf}" ]; then 
         echo "lxc.include = ${lxc_conf}" >> "${config}" || die " Impossible to config lxc.include at ${config}"
     fi
-    echo "lxc.network.type = ${lxc_network_type}" >> "${config}" || die " Impossible to config lxc.network.type at ${config}"
-	echo "lxc.network.link = ${lxc_network_link}" >> "${config}" || die " Impossible to config lxc.network.link at ${config}"
-	echo "lxc.network.flags = ${lxc_network_flags}" >> "${config}" || die " Impossible to config lxc.network.flags at ${config}"
-	echo "lxc.network.ipv4 = ${lxc_network_ipv4}" >> "${config}" || die " Impossible to config lxc.network.ipv4 at ${config}"
-	echo "lxc.network.ipv4.gateway = ${lxc_network_ipv4_gateway}" >> "${config}" || die " Impossible to config lxc.network.ipv4.gateway at ${config}"
-    echo "lxc.network.name=${lxc_network_name}" >> "${config}" || die " Impossible to config lxc.network.name at ${config}"
+    if (( ${create_bridge} ));then
+		echo "lxc.network.type = ${lxc_network_type}" >> "${config}" || die " Impossible to config lxc.network.type at ${config}"
+		echo "lxc.network.link = ${lxc_network_link}" >> "${config}" || die " Impossible to config lxc.network.link at ${config}"
+		echo "lxc.network.flags = ${lxc_network_flags}" >> "${config}" || die " Impossible to config lxc.network.flags at ${config}"
+		echo "lxc.network.ipv4 = ${lxc_network_ipv4}" >> "${config}" || die " Impossible to config lxc.network.ipv4 at ${config}"
+		echo "lxc.network.ipv4.gateway = ${lxc_network_ipv4_gateway}" >> "${config}" || die " Impossible to config lxc.network.ipv4.gateway at ${config}"
+		echo "lxc.network.name=${lxc_network_name}" >> "${config}" || die " Impossible to config lxc.network.name at ${config}"
+    fi
     
 	return 0
+	
 }
 
 (( EUID == 0 )) || die " ${bred}You must be run this script with root privileges"
 
 sanitize
 
-#prepare_network
+if (( ${create_bridge} ));then
+	prepare_network
+fi
 
 mkdir -p "${cont_rootfs}"
 
@@ -252,5 +221,5 @@ customize_cont
 
 cont_conf
 
-echo_valid " Obarun container ${name} is successfully created! The configuration is stored in ${lxc_conf}."
+echo_valid " The configuration file is stored in ${lxc_conf}."
 
