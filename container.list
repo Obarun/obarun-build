@@ -56,7 +56,7 @@ texinfo
 which
 #xfsprogs
 libusb-nosystemd
-mkinitcpio-nosystemd
+#mkinitcpio-nosystemd
 sudo
 net-tools
 
@@ -82,5 +82,6 @@ s6-boot
 skalibs
 execline
 s6opts
+pacopts
 obarun-libs
 
