@@ -86,15 +86,23 @@ config_localetime(){
 }
 custo_once config_localetime
 
+config_keymap(){
+	
+	echo_display " Define keymap" 
+	sed -i "s,KEYMAP=.*$,KEYMAP=$keymap,g" /etc/s6/s6.conf || die " Impossible to set ${keymap} on s6.conf"
+		
+	echo_valid " Console keymap was configured successfully"
+	
+}
+custo_once config_keymap
+
 config_user(){
 	
 	echo_display " Define ${newuser}"
 	
-	useradd -m -g users -G "floppy,network,rfkill,storage,optical,wheel,power" -s /usr/bin/bash "${newuser}" || die " Impossible to define user ${newuser}"
+	user_add "${newuser}"
 	
 	echo "${newuser}:${passw_user}" | chpasswd || die " Failed to change $newuser password"
-	
-	sed -i "s/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/" /etc/sudoers || die " Impossible to set sudoers for user ${newuser}"
 	
 	echo_valid " User ${newuser} was created successfully" 
 	
@@ -105,22 +113,12 @@ config_root(){
 	
 	echo_display " Define root"
 
-	echo "root:${passw_user}" | chpasswd || die " Failed to change root password"
+	echo "root:${passw_root}" | chpasswd || die " Failed to change root password"
 	
 	echo_valid " root user was configured successfully" 
 	
 }
 custo_once config_root
-
-config_keymap(){
-	
-	echo_display " Define keymap" 
-	sed -i "s,KEYMAP=.*$,KEYMAP=$keymap,g" /etc/s6/s6.conf || die " Impossible to set ${keymap} on s6.conf"
-		
-	echo_valid " Console keymap was configured successfully"
-	
-}
-custo_once config_keymap
 
 add_at_logroup(){
 	
