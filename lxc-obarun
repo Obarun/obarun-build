@@ -182,7 +182,7 @@ conf_console(){
 cont_conf() {
 	
     mkdir -p "${_cont_conf}" || die " Impossible to make directory ${_cont_conf}"
-    local config="${_cont_conf}/config"
+    local config="${_cont_conf}/config" lxc_network_hwaddr=00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//')
    
     rm -f ${config}
    
@@ -199,6 +199,7 @@ cont_conf() {
 		echo "lxc.network.ipv4 = ${lxc_network_ipv4}" >> "${config}" || die " Impossible to config lxc.network.ipv4 at ${config}"
 		echo "lxc.network.ipv4.gateway = ${lxc_network_ipv4_gateway}" >> "${config}" || die " Impossible to config lxc.network.ipv4.gateway at ${config}"
 		echo "lxc.network.name=${lxc_network_name}" >> "${config}" || die " Impossible to config lxc.network.name at ${config}"
+		echo "lxc.network.hwaddr=${lxc_network_hwaddr}" >> "${config}" || die " Impossible to config lxc.network.hwaddr at ${config}"
     fi
     
 	return 0
