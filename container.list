@@ -85,3 +85,5 @@ s6opts
 pacopts
 obarun-libs
 
+#obarun-keyring
+haveged
