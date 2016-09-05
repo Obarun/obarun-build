@@ -14,7 +14,7 @@ source /etc/obarun/build.conf
 
 templates="${templates:-/usr/share/obarun/obarun-build/templates}"
 workdir="build_pkg"
-
+workconf="build_conf"
 
 clean_install(){
 	echo_bold "clean install"
@@ -25,29 +25,37 @@ usage(){
 }
 
 create(){
-	unset file file_list
 	
 	local file
 	local -a file_list
 	mapfile -t file_list < <(ls --group-directories-first ${templates}/*)
-	
-	echo "filelist=${file_list[@]}"
-	# check if templates exist on $sources
+
+	# check if templates directory exist on $target
 	# create it if doesn't exist
-	check_dir "${sources}/${named}/${workdir}"
-	if (( ! $? )); then
-		echo_display " Create ${sources}/${named}/${workdir}"
-		mkdir -p "${sources}/${named}/${workdir}"
+	check_dir "${target}/${named}/${workconf}"
+	if (( $? )); then
+		echo_display " Create ${target}/${named}/${workconf}"
+		mkdir -p "${target}/${named}/${workconf}" || die " Impossible to create directory ${target}/${named}/${workconf}" 
 	fi
+	# check if configuration templates exist
+	# if not create it
 	for file in "${file_list[@]}"; do
 		file=${file##*/}
-		search_in_dir "${sources}/${named}" "${workdir}" "${file}"
-		echo $?
-		if (( ! $? )); then
-			echo_display " Copy ${file} templates file to ${sources}/${named}/${workdir}"
-			cp "${templates}/${file}" "${sources}/${named}/${workdir}"
+		search_in_dir "${target}/${named}" "${workconf}" "${file}"
+		if (( $? )); then
+			echo_display " Copy ${file} templates file to ${target}/${named}/${workconf}"
+			cp "${templates}/${file}" "${target}/${named}/${workconf}" || die " Impossible to copy ${file}"
 		fi
 	done
+	
+	cont_create(){
+		export named="${named}"
+		export workdir="${workdir}"
+		export workconf="${workconf}"
+		export cont_create_conf="${target}/${named}/${workconf}/cont_create.conf"
+		lxc-create -n "${named}" -t "${target}/${named}/${workconf}/cont_create" || die " Impossible to create the container"
+	}
+	cont_create
 }
 
 build(){
