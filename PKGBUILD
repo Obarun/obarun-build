@@ -4,7 +4,7 @@
 pkgname=obarun-build
 pkgver=23536df
 pkgrel=1
-pkgdesc=" Script for build package on a lxc container"
+pkgdesc=" Script for building package on clean environment with lxc container"
 arch=(x86_64)
 url="file:///var/lib/obarun/$pkgname/update_package/$pkgname"
 license=('BEERWARE')
