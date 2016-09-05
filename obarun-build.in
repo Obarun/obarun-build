@@ -43,7 +43,7 @@ main_update(){
 	reply_answer
 
 	if (( ! $? )); then
-		pac_update "obarun-build" "/var/lib/obarun/obarun-build $git_addr" || die " Impossible to update" "clean_install"
+		pac_update "obarun-build" "/var/lib/obarun/obarun-build" "$git_addr" || die " Impossible to update" "clean_install"
 		source /usr/lib/obarun/build_functions
 	else
 		echo_retry " Some functionalities will cannot working properly without updating"
