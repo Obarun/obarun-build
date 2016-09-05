@@ -31,8 +31,8 @@ package() {
 	install -Dm 0755 "build_functions" "$pkgdir/usr/lib/obarun/build_functions"
 	install -Dm 0644 "build.conf" "$pkgdir/etc/obarun/build.conf"
 	install -dm 0755 "$pkgdir/usr/share/obarun/obarun-build/templates"
-	for file in templates/{cont_create.conf,cont_pkg_base,cont_start.conf,makepkg,pacman.conf}; do
-		install -Dm 0644 "${file}" "$pkgdir/usr/shar/obarun/obarun-build/templates"
+	for file in templates/{cont_create.conf,cont_pkg_base,cont_start.conf,makepkg.conf,pacman.conf}; do
+		install -Dm 0644 "${file}" "$pkgdir/usr/share/obarun/obarun-build/templates"
 	done
 	for file in templates/{cont_create,cont_customize}; do
 		install -Dm 0755 "${file}" "$pkgdir/usr/share/obarun/obarun-build/templates"
