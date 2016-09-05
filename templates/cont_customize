@@ -1,0 +1,149 @@
+#!/bin/bash
+#
+# This script is used by cont_create script for customize the fresh container 
+#
+# Authors:
+# Eric Vidal <eric@obarun.org>
+#
+# Copyright (C) 2016 Eric Vidal <eric@obarun.org>
+#
+# This scripts is under license BEER-WARE.
+# "THE BEER-WARE LICENSE" (Revision 42):
+# <eric@obarun.org> wrote this file.  As long as you retain this notice you
+# can do whatever you want with this stuff. If we meet some day, and you think
+# this stuff is worth it, you can buy me a beer in return.   Eric Vidal
+
+
+
+shopt -s extglob
+
+##		Check is the functions file exits
+
+if [[ -f /usr/lib/obarun/common_functions ]]; then
+	source /usr/lib/obarun/common_functions
+else
+	echo "==>> Missing file : common_functions"
+	exit	
+fi
+
+if [[ -f /tmp/obarun-build-tmp/build.conf ]]; then
+	source /tmp/obarun-build-tmp/build.conf
+else
+	echo_error " Missing file : build.conf"
+	exit
+fi
+if [[ -f /tmp/obarun-build-tmp/cont_create.conf ]]; then
+	source /tmp/obarun-build-tmp/cont_create.conf
+else
+	echo_error " Missing file : cont_create.conf"
+	exit
+fi
+
+custo_once() {
+	
+	local _tmp
+	_tmp="${src_functions}"
+	
+	if [[ ! -d $_tmp ]]; then
+		mkdir -p -m0750 $_tmp || die " Impossible to create $_tmp"
+	fi
+    if [[ ! -e $_tmp/customize.${1} ]]; then
+        $1 || die " Cannot execute $_"
+        touch $_tmp/customize.${1}
+    fi
+    unset _tmp
+    
+}
+
+config_hostname(){
+	
+	echo_display " Define hostname as : ${hostname}"
+	if [[ "$hostname" != "" ]]; then
+		sed -i 's/ .*$//' /etc/hosts || die " Impossible to define hosts"
+	fi
+
+	sed -i "s/HOSTNAME=.*$/HOSTNAME=$hostname/g" /etc/s6/s6.conf || die " Impossible to define hostname on s6.conf"
+	
+	echo "$hostname" > /etc/hostname || die " Impossible to define hostname"
+	sed -i '/127.0.0.1/s/$/ '$hostname'/' /etc/hosts || die " Impossible to define hosts"
+	sed -i '/::1/s/$/ '$hostname'/' /etc/hosts || die " Impossible to define hosts"
+	
+	echo_valid " hostname was configured successfully"
+	
+}
+custo_once config_hostname
+
+config_locale(){
+	
+	echo_display " Define locale"
+	locale-gen || die " Impossible to launch locale-gen"
+	echo LANG="$locale" > /etc/locale.conf || die " Impossible to define locale.conf"
+    echo LC_COLLATE=C >> /etc/locale.conf || die " Impossible to define locale.conf"
+	
+	echo_valid " Locale was created successfully"
+	
+}
+custo_once config_locale
+
+config_localetime(){
+	
+	echo_display " Define localtime"
+	if [[ "$subzone" != "" ]]; then
+		ln -sf /usr/share/zoneinfo/$zone/$subzone /etc/localtime || die " Impossible to define localtime"
+		sed -i "s/TZ=.*$/TZ=$zone\/$subzone/g" /etc/s6/s6.conf || die " Impossible to define localtime on s6.conf"
+				
+	else
+		ln -sf /usr/share/zoneinfo/$zone /etc/localtime || die " Impossible to define localtime"
+		sed -i "s/TZ=.*$/TZ=$zone/g" /etc/s6/s6.conf || die " Impossible to define localtime on s6.conf"
+	fi
+	
+	echo_valid " Localetime was configured successfully"
+	
+}
+custo_once config_localetime
+
+config_keymap(){
+	
+	echo_display " Define keymap" 
+	sed -i "s,KEYMAP=.*$,KEYMAP=$keymap,g" /etc/s6/s6.conf || die " Impossible to set ${keymap} on s6.conf"
+		
+	echo_valid " Console keymap was configured successfully"
+	
+}
+custo_once config_keymap
+
+config_user(){
+	
+	echo_display " Define ${newuser}"
+	
+	user_add "${newuser}"
+	
+	echo "${newuser}:${passw_user}" | chpasswd || die " Failed to change $newuser password"
+	
+	echo_valid " User ${newuser} was created successfully" 
+	
+}
+custo_once config_user
+
+config_root(){
+	
+	echo_display " Define root"
+
+	echo "root:${passw_root}" | chpasswd || die " Failed to change root password"
+	
+	echo_valid " root user was configured successfully" 
+	
+}
+custo_once config_root
+
+add_at_logroup(){
+	
+	echo_display " add {root,$newuser} at log group"
+	gpasswd -a root log || die " Impossible to add root at log group"
+	gpasswd -a "$newuser" log || die " Impossible to add user ${newuser} at log group"
+	
+}
+custo_once add_at_logroup 
+
+echo_display " Customization terminate"
+

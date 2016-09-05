@@ -1,0 +1,236 @@
+#!/bin/bash
+#
+# template script for generating Obarun container for LXC
+#	
+# Authors:
+# Eric Vidal <eric@obarun.org>
+#
+# Copyright (C) 2016 Eric Vidal <eric@obarun.org>
+#
+# "THE BEERWARE LICENSE" (Revision 42):
+# <eric@obarun.org> wrote this file.  As long as you retain this notice you
+# can do whatever you want with this stuff. If we meet some day, and you think
+# this stuff is worth it, you can buy me a beer in return.   Eric Vidal http://obarun.org
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+
+# functions file for obarun-build package
+
+source /usr/lib/obarun/common_functions
+source /etc/obarun/build.conf
+source "${cont_create_conf}"
+
+trap "clean_install"  TERM HUP QUIT INT ERR KILL STOP 
+
+clean_install() {
+    echo_display " Cleaning up"
+    lxc-destroy -n "${name}"
+    rm -rf "${cont_path}"
+    destroy_network
+    exit
+}
+
+# Detect use under userns (unsupported)
+for arg in "$@"; do
+    [ "$arg" = "--" ] && break
+    if [ "$arg" = "--mapped-uid" -o "$arg" = "--mapped-gid" ]; then
+        echo "This template can't be used for unprivileged containers." 1>&2
+        echo "You may want to try the \"download\" template instead." 1>&2
+        exit 1
+    fi
+done
+
+# Make sure the usual locations are in PATH
+export PATH=$PATH:/usr/local/bin:/usr/bin:/sbin:/bin
+
+# Ensure strict root's umask doesn't render the VM unusable
+umask 022
+
+if [ -z "$arch" ]; then
+	case "$(uname -m)" in
+		i?86) arch=i486 ;;
+		arm*) arch=arm ;;
+		*) arch=$(uname -m) ;;
+	esac
+fi
+
+sanitize(){
+	if [ -d "${cont_path}" ]; then
+		rm -rf "${cont_path}"
+	fi
+	if [ -d _cont_conf ]; then
+		lxc-destroy -n "${name}"
+    fi
+}
+
+prepare_network(){
+	
+	ip link add name "${bridge_interface}" address 00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//') type bridge
+	ip link set "${bridge_interface}" up
+	ip addr add "${bridge_addr}" dev "${bridge_interface}" 
+	ip link set "${host_interface}" master "${bridge_interface}" 
+
+	if ! $(grep -q "POSTROUTING -o ${host_interface} -j" /etc/iptables/iptables.rules 2>/dev/null); then
+	
+		iptables -t nat -A POSTROUTING -o "${host_interface}" -j MASQUERADE
+	
+		echo_info "-t nat -A POSTROUTING -o "${host_interface}" -j MASQUERADE" 
+		echo_info "was added to your /etc/iptables/iptables.rules"
+	fi
+	
+	return 0
+}
+destroy_network(){
+	
+	ip link set "${host_interface}" nomaster
+	ip link set "${bridge_interface}" down
+	ip link delete "${bridge_interface}" type bridge
+	ip route add default via "${router_addr}"
+}
+
+create_dir(){
+	
+	echo_notvalid " Create needed directory in ${cont_rootfs}"
+	mkdir -m 0755 -p "${cont_rootfs}"/var/{cache/pacman/pkg,lib/pacman,lib/pacman/sync,log} "${cont_rootfs}"/{dev,run,etc,etc/pacman.d}
+	mkdir -m 0755 -p "${cont_rootfs}"/dev/{pts,shm}
+	mkdir -m 1777 -p "${cont_rootfs}"/tmp
+	mkdir -m 0555 -p "${cont_rootfs}"/{sys,proc}
+	
+	return 0
+}
+
+pac_file(){
+	
+	if [[ -d /etc/pacman.d/gnupg && ! -d $cont_rootfs/etc/pacman.d/gnupg ]]; then
+		echo_display " Copying gnupg directory"
+		cp -a /etc/pacman.d/gnupg "${cont_rootfs}/etc/pacman.d/" || die " Impossible to copy gnupg directory"
+	fi
+	
+	echo_display " Copying mirrorlist"
+	cp -af /etc/pacman.d/mirrorlist "${cont_rootfs}/etc/pacman.d/" || die " Impossible to copy mirrorlist list"
+	
+	echo_display " Copying pacman database"
+	cp -f "/var/lib/pacman/sync/"*.* "${cont_rootfs}/var/lib/pacman/sync/" || die " Impossible to copy pacman database"
+	
+	return 0 
+}
+
+
+
+# install packages within container 
+install_cont() {
+	create_dir
+	pac_file
+    pacman -r "${cont_rootfs}" -S $(grep -h -v ^# $target/$named/$workconf/cont_pkg_*) --noconfirm --config "${pac_conf}" --gpgdir "${gpg_dir}" || die " Impossible to install packages"
+  
+    return 0
+}
+
+# customize container
+customize_cont() {
+	
+	mkdir -p "${cont_rootfs}""${src_functions}"
+			
+	echo_display " Copying cont_customize"
+	cp -f "${target}/${named}/${workconf}/cont_customize" "${cont_rootfs}""${src_functions}" || die " Impossible to copy file customizeCont" 
+	
+	echo_display " Copying build.conf"
+	cp -f "/etc/obarun/build.conf" "${cont_rootfs}""${src_functions}" || die " Impossible to copy build.conf"
+	
+	echo_display " Copying conf_build.conf"
+	cp -f "${target}/${named}/${workconf}/cont_create.conf" "${cont_rootfs}""${src_functions}" || die " Impossible to copy cont_create.conf"
+	
+	echo_display " Copying locale file at ${cont_rootfs}/etc/"  
+    cp -fp /etc/locale.conf /etc/locale.gen "${cont_rootfs}/etc/" || die " Impossible to copy locale file"
+	
+	echo_display " Copy resolv.conf in ${cont_rootfs}"
+	cp -f /etc/resolv.conf "${cont_rootfs}/etc/resolv.conf" || die " Impossible to copy the file resolv.conf"
+	
+	echo_display " Copy pacman.conf in ${cont_rootfs}"
+	cp -f "${pac_conf}" "${cont_rootfs}"/etc || die " Impossible to copy the file ${pac_conf}"
+	
+	echo_display " Copy makepkg.conf inin ${cont_rootfs}"
+	cp -f "${makepkg_conf}" "${cont_rootfs}"/etc || die " Impossible to copy the file ${makepkg_conf}"
+	
+	chroot "${cont_rootfs}" "${src_functions}"/cont_customize || die " Failed to enter on ${cont_rootfs} or Failed to execute the script customizeCont"
+	
+	conf_console
+	
+	return 0
+}
+conf_console(){
+	
+	# enable getty on active ttys
+	# enable getty on active ttys
+    local nttys=$(cat "${lxc_conf}" | grep "^lxc.tty" | head -n1 | cut -d= -f2 | tr -d "[:blank:]")
+    local devttydir=$(cat "${lxc_conf}" | grep "^lxc.devttydir" | head -n1 | cut -d= -f2 | tr -d "[:blank:]")
+    local devtty=""
+    
+    # bind getty instances to /dev/<devttydir>/tty* if lxc.devttydir is set
+    if [[ -n "${devttydir}" ]]; then
+		devtty="${devttydir}-"
+		echo "${devttydir}/console" >> "${cont_rootfs}/etc/securetty" || die " Impossible to set ${devttydir}/console in ${cont_rootfs}/etc/securetty"
+	fi
+    
+    # update securetty to allow console login if devttydir is set
+    if [ -n "${devttydir}" ]; then
+        for i in $(seq 1 ${nttys:-1}); do
+            echo "${devttydir}/tty${i}" >> "${cont_rootfs}/etc/securetty" || die " Impossible to set ${devttydir}/tty${i} in ${cont_rootfs}/etc/securetty"
+        done
+    fi
+	
+	# optional here, do not die if an error is created
+	echo "# For libvirt/Virtual Machine Monitor" >>${cont_rootfs}/etc/securetty
+    echo "pts/0"        >>${cont_rootfs}/etc/securetty
+    
+    return 0
+}
+
+# Write container configuration files
+cont_conf() {
+	
+    mkdir -p "${_cont_conf}" || die " Impossible to make directory ${_cont_conf}"
+    local config="${_cont_conf}/config" lxc_network_hwaddr=00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//')
+   
+    rm -f ${config}
+   
+    echo "lxc.utsname = ${name}" >> "${config}" || die " Impossible to config lxc.utsname at ${config}"
+	echo "lxc.arch = ${arch}" >> "${config}" || die " Impossible to config lxc.arch at ${config}"
+	echo "lxc.rootfs = ${cont_rootfs}" >> "${config}" || die " Impossible to config lxc.rootfs at ${config}"
+    if [ -e "${lxc_conf}" ]; then 
+        echo "lxc.include = ${lxc_conf}" >> "${config}" || die " Impossible to config lxc.include at ${config}"
+    fi
+    if (( ${create_bridge} ));then
+		echo "lxc.network.type = ${lxc_network_type}" >> "${config}" || die " Impossible to config lxc.network.type at ${config}"
+		echo "lxc.network.link = ${lxc_network_link}" >> "${config}" || die " Impossible to config lxc.network.link at ${config}"
+		echo "lxc.network.flags = ${lxc_network_flags}" >> "${config}" || die " Impossible to config lxc.network.flags at ${config}"
+		echo "lxc.network.ipv4 = ${lxc_network_ipv4}" >> "${config}" || die " Impossible to config lxc.network.ipv4 at ${config}"
+		echo "lxc.network.ipv4.gateway = ${lxc_network_ipv4_gateway}" >> "${config}" || die " Impossible to config lxc.network.ipv4.gateway at ${config}"
+		echo "lxc.network.name=${lxc_network_name}" >> "${config}" || die " Impossible to config lxc.network.name at ${config}"
+		echo "lxc.network.hwaddr=${lxc_network_hwaddr}" >> "${config}" || die " Impossible to config lxc.network.hwaddr at ${config}"
+    fi
+    
+	return 0
+	
+}
+
+(( EUID == 0 )) || die " ${bred}You must be run this script with root privileges"
+
+sanitize
+
+if (( ${create_bridge} ));then
+	prepare_network
+fi
+
+mkdir -p "${cont_rootfs}"
+
+install_cont
+
+customize_cont
+
+cont_conf
+
+echo_valid " The configuration file is stored in ${lxc_conf}."
+
