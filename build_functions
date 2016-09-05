@@ -1,0 +1,59 @@
+#!/bin/bash
+#s This script is under license BEER-WARE.
+# "THE BEER-WARE LICENSE" (Revision 42):
+# <eric@obarun.org> wrote this file.  As long as you retain this notice you
+# can do whatever you want with this stuff. If we meet some day, and you think
+# this stuff is worth it, you can buy me a beer in return.   Eric Vidal
+
+# functions file for obarun-build package
+
+shopt -s extglob
+
+source /usr/lib/obarun/common_functions
+source /etc/obarun/build.conf
+
+templates="${templates:-/usr/share/obarun/obarun-build/templates}"
+workdir="build_pkg"
+
+
+clean_install(){
+	echo_bold "clean install"
+}
+
+usage(){
+	echo_bold "usage"
+}
+
+create(){
+	unset file file_list
+	
+	local file
+	local -a file_list
+	mapfile -t file_list < <(ls --group-directories-first ${templates}/*)
+	
+	echo "filelist=${file_list[@]}"
+	# check if templates exist on $sources
+	# create it if doesn't exist
+	check_dir "${sources}/${named}/${workdir}"
+	if (( ! $? )); then
+		echo_display " Create ${sources}/${named}/${workdir}"
+		mkdir -p "${sources}/${named}/${workdir}"
+	fi
+	for file in "${file_list[@]}"; do
+		file=${file##*/}
+		search_in_dir "${sources}/${named}" "${workdir}" "${file}"
+		echo $?
+		if (( ! $? )); then
+			echo_display " Copy ${file} templates file to ${sources}/${named}/${workdir}"
+			cp "${templates}/${file}" "${sources}/${named}/${workdir}"
+		fi
+	done
+}
+
+build(){
+	echo_bold "build"
+}
+
+start(){
+	echo_bold "start"
+}

@@ -1,0 +1,76 @@
+#!/bin/bash
+# This script is under license BEER-WARE
+# "THE BEER-WARE LICENSE" (Revision 42):
+# <eric@obarun.org> wrote this file.  As long as you retain this notice you
+# can do whatever you want with this stuff. If we meet some day, and you think
+# this stuff is worth it, you can buy me a beer in return.   Eric Vidal
+
+
+
+shopt -s extglob
+
+##		Check is the functions file exits
+
+if [[ -f /usr/lib/obarun/common_functions ]]; then
+	source /usr/lib/obarun/common_functions
+else
+	echo "==>> Missing file : common_functions"
+	exit	
+fi
+
+if [[ -f /usr/lib/obarun/build_functions ]]; then
+	source /usr/lib/obarun/build_functions
+else
+	echo "==>> Missing file : build_functions"
+	exit	
+fi
+
+##		Clean before exit
+
+trap "clean_install" ERR QUIT KILL STOP INT TERM 
+
+##		Must be run without root privilegies 
+
+(( EUID == 0 )) || die " ${bred}You must be run this script with root privilegies" "clean_install"
+
+##		Let's go
+
+##		Update package or not
+
+main_update(){
+	echo_display " Do you want to update obarun-build package? [y|n]"
+
+	reply_answer
+
+	if (( ! $? )); then
+		pac_update "obarun-build" "/var/lib/obarun/obarun-build $git_addr" || die " Impossible to update" "clean_install"
+		source /usr/lib/obarun/build_functions
+	else
+		echo_retry " Some functionalities will cannot working properly without updating"
+		echo_info " Press enter to continue"
+		read enter
+	fi
+}
+
+if [[ "$update" == "yes" ]]; then
+	main_update
+fi
+
+named="${2}"
+
+case "${1}" in
+	create)
+	    create "${named}" 
+	    ;;
+	start)
+	    start "${named}" 
+	    ;;
+	build)
+		build "${named}"
+		;;
+	*)
+	    usage
+	    exit 1
+	    ;;
+esac
+exit 0
