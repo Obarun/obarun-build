@@ -1,11 +1,21 @@
 #!/bin/bash
-#s This script is under license BEER-WARE.
-# "THE BEER-WARE LICENSE" (Revision 42):
+#
+# Functions file for obarun-build package
+#
+# Authors:
+# Eric Vidal <eric@obarun.org>
+#
+# Copyright (C) 2016 Eric Vidal <eric@obarun.org>
+#
+# "THE BEERWARE LICENSE" (Revision 42):
 # <eric@obarun.org> wrote this file.  As long as you retain this notice you
 # can do whatever you want with this stuff. If we meet some day, and you think
-# this stuff is worth it, you can buy me a beer in return.   Eric Vidal
-
-# functions file for obarun-build package
+# this stuff is worth it, you can buy me a beer in return.   Eric Vidal http://obarun.org
+#
+# This script is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+ 
 
 shopt -s extglob
 
@@ -15,6 +25,7 @@ source /etc/obarun/build.conf
 templates="${templates:-/usr/share/obarun/obarun-build/templates}"
 workdir="build_pkg"
 workconf="build_conf"
+result_conf="/var/cache/obarun/pkgbuild/${named}"
 
 clean_install(){
 	echo_bold "clean install"
@@ -23,7 +34,7 @@ clean_install(){
 usage(){
 	echo_bold "usage"
 }
-
+# {1} name of the container to create
 create(){
 	
 	local file
@@ -48,20 +59,81 @@ create(){
 		fi
 	done
 	
-	cont_create(){
-		export named="${named}"
-		export workdir="${workdir}"
-		export workconf="${workconf}"
-		export cont_create_conf="${target}/${named}/${workconf}/cont_create.conf"
-		lxc-create -n "${named}" -t "${target}/${named}/${workconf}/cont_create" || die " Impossible to create the container"
-	}
-	cont_create
+	cont_create "${named}"
 }
 
 build(){
-	echo_bold "build"
+	
+	# check if sources variables is set
+	if [[ -z "${sources}" ]]; then
+		die " Aborting : sources variables on /etc/obarun/build.conf is not set"
+	fi
+	
+	# be sure that $named exist on $sources directory
+	check_dir "${sources}/${named}"
+	if (( $? )); then
+		die " ${named} do not exist on ${sources} directory"
+	fi
+	
+	# be sure that a PKGBUILD file exit on $sources/$named
+	search_in_dir "${sources}" "${named}" "PKGBUILD"
+	if (( $? )); then
+		die " Aborting : a PKGBUILD file must at least exist into ${sources} directory"
+	fi
+	
+	# be sure that the named container doesn't exist
+	lxc-ls | grep "${1}" &>/dev/null
+	if (( ! $? )); then
+		echo_error " Container already exist, please choose another name"
+	fi
+	
+	# create the container
+	create "${named}"
+	
+	# copy $sources/$named files onto the container
+	mkdir -p "${target}/${named}/${workdir}/rootfs/tmp/${named}" || die " Impossible to create ${target}/${named}/${workdir}/rootfs/tmp/${named}"
+	cp -r "${sources}/${named}" "${target}/${named}/${workdir}/rootfs/tmp/" || die " Impossible to copy file from ${sources}/${named}"
+	
+	# remove existing package and src, pkg directories
+	rm -f "${target}/${named}/${workdir}/rootfs/tmp/${named}"/*.pkg.* &>/dev/null
+	rm -rf "${target}/${named}/${workdir}/rootfs/tmp/${named}"/{src,pkg} &>/dev/null
+	
+	# start the container
+	lxc-start -n "${named}" || die " Aborting : impossible to start the container"
+	
+	# give a good permissions at the tmp/$named onto the container
+	lxc-attach -n "${named}" --clear-env -v named="${named}" -v newuser="${newuser}" -- bash -c 'echo "${newuser} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers'
+	lxc-attach -n "${named}" --clear-env -v named="${named}" -v newuser="${newuser}" -- bash -c 'chown -R ${newuser}:users /tmp/${named}'
+	
+	# build the package
+	lxc-attach -n "${named}" --clear-env -v named="${named}" -v newuser="${newuser}" -- bash -c 'cd /tmp/${named}; su ${newuser}  -c "makepkg -Cs --noconfirm"' 
+	
+	# copy the resulting package on the right place
+	mkdir -p "${result_pkg}/${named}"
+	cp "${target}/${named}/${workdir}/rootfs/tmp/${named}"/*.pkg.tar.* "${result_pkg}/${named}" || echo_info " WARNING : the resulting package can be copied to ${result_pkg}/${named}"
+	
+	# stop the container
+	lxc-stop -n "${named}" -k
 }
 
 start(){
 	echo_bold "start"
+}
+
+################################################################################################################
+##																											  ##	
+##										sub_functions														  ##
+##																											  ##
+################################################################################################################
+# ${1} name of the container to create
+cont_create(){
+		export named="${1}"
+		export workdir="${workdir}"
+		export workconf="${workconf}"
+		export cont_create_conf="${target}/${named}/${workconf}/cont_create.conf"
+		lxc-create -n "${named}" -t "${target}/${named}/${workconf}/cont_create" || die " Impossible to create the container"
+}
+
+cont_attach(){
+	echo bla
 }

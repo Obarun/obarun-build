@@ -1,9 +1,21 @@
 #!/bin/bash
-# This script is under license BEER-WARE
-# "THE BEER-WARE LICENSE" (Revision 42):
+#
+#
+# Main sript of obarun-build package
+#
+# Authors:
+# Eric Vidal <eric@obarun.org>
+#
+# Copyright (C) 2016 Eric Vidal <eric@obarun.org>
+#
+# "THE BEERWARE LICENSE" (Revision 42):
 # <eric@obarun.org> wrote this file.  As long as you retain this notice you
 # can do whatever you want with this stuff. If we meet some day, and you think
-# this stuff is worth it, you can buy me a beer in return.   Eric Vidal
+# this stuff is worth it, you can buy me a beer in return.   Eric Vidal http://obarun.org
+#
+# This script is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
 
 
 
