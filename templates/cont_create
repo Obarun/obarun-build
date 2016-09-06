@@ -12,11 +12,10 @@
 # can do whatever you want with this stuff. If we meet some day, and you think
 # this stuff is worth it, you can buy me a beer in return.   Eric Vidal http://obarun.org
 #
-# This library is distributed in the hope that it will be useful,
+# This script is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
 
-# functions file for obarun-build package
 
 source /usr/lib/obarun/common_functions
 source /etc/obarun/build.conf
