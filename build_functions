@@ -106,11 +106,14 @@ build(){
 	lxc-attach -n "${named}" --clear-env -v named="${named}" -v newuser="${newuser}" -- bash -c 'chown -R ${newuser}:users /tmp/${named}'
 	
 	# build the package
-	lxc-attach -n "${named}" --clear-env -v named="${named}" -v newuser="${newuser}" -- bash -c 'cd /tmp/${named}; su ${newuser}  -c "makepkg -Cs --noconfirm"' 
+	lxc-attach -n "${named}" --clear-env -v named="${named}" -v newuser="${newuser}" -- bash -c 'cd /tmp/${named}; su ${newuser}  -c "updpkgsums; makepkg -Cs --noconfirm"' 
 	
 	# copy the resulting package on the right place
-	mkdir -p "${result_pkg}/${named}"
-	cp "${target}/${named}/${workdir}/rootfs/tmp/${named}"/*.pkg.tar.* "${result_pkg}/${named}" || echo_info " WARNING : the resulting package can be copied to ${result_pkg}/${named}"
+	check_dir "${result_pkg}"
+	if (( $? )); then
+		mkdir -p "${result_pkg}"
+	fi
+	cp -f "${target}/${named}/${workdir}/rootfs/tmp/${named}"/*.pkg.tar.* "${result_pkg}" || echo_info " WARNING : the resulting package can be copied to ${result_pkg}/${named}"
 	
 	# stop the container
 	lxc-stop -n "${named}" -k
@@ -120,6 +123,9 @@ start(){
 	echo_bold "start"
 }
 
+remake(){
+	echo_bold "remake"
+}
 ################################################################################################################
 ##																											  ##	
 ##										sub_functions														  ##
