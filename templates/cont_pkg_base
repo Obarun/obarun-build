@@ -6,13 +6,13 @@ bash
 bzip2
 coreutils
 #cryptsetup
-#device-mapper-nosystemd
-dhcpcd-nosystemd
+#device-mapper
+dhcpcd
 diffutils
 e2fsprogs
 eudev-obarun
 file
-filesystem-obarun
+filesystem
 findutils
 gawk
 gcc-libs
@@ -22,16 +22,16 @@ grep
 gzip
 inetutils
 iproute2
-iptables-nosystemd
+iptables
 iputils
 #jfsutils
 less
 licenses
-libgudev-nosystemd
+#libgudev
 #linux
 #linux-headers
 #logrotate
-#lvm2-nosystemd
+#lvm2
 #man-db
 #man-pages
 #mdadm
@@ -39,12 +39,12 @@ nano
 nbd
 pacman
 #pciutils
-#pcmciautils-nosystemd
+#pcmciautils
 perl
-util-linux-nosystemd
-libutil-linux-nosystemd
-procps-ng-nosystemd
-psmisc
+util-linux
+libutil-linux
+procps-ng
+#psmisc
 #reiserfsprogs
 #s-nail
 sed
@@ -56,8 +56,8 @@ texinfo
 #vi
 which
 #xfsprogs
-libusb-nosystemd
-#mkinitcpio-nosystemd
+#libusb
+#mkinitcpio
 sudo
 net-tools
 
@@ -86,5 +86,4 @@ s6opts
 pacopts
 obarun-libs
 
-#obarun-keyring
 haveged
