@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# template script for generating Obarun container for LXC
+# template script for generating Obarun container with lxc
 #	
 # Authors:
 # Eric Vidal <eric@obarun.org>
@@ -12,10 +12,11 @@
 # can do whatever you want with this stuff. If we meet some day, and you think
 # this stuff is worth it, you can buy me a beer in return.   Eric Vidal http://obarun.org
 #
-# This script is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
 
+# functions file for obarun-build package
 
 source /usr/lib/obarun/common_functions
 source /etc/obarun/build.conf
@@ -25,7 +26,7 @@ trap "clean_install"  TERM HUP QUIT INT ERR KILL STOP
 
 clean_install() {
     echo_display " Cleaning up"
-    lxc-destroy -n "${name}"
+    lxc-destroy -n "${named}"
     rm -rf "${cont_path}"
     destroy_network
     exit
@@ -60,17 +61,21 @@ sanitize(){
 		rm -rf "${cont_path}"
 	fi
 	if [ -d _cont_conf ]; then
-		lxc-destroy -n "${name}"
+		lxc-destroy -n "${named}"
     fi
 }
 
 prepare_network(){
 	
-	ip link add name "${bridge_interface}" address 00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//') type bridge
-	ip link set "${bridge_interface}" up
-	ip addr add "${bridge_addr}" dev "${bridge_interface}" 
-	ip link set "${host_interface}" master "${bridge_interface}" 
-
+	# check if the bridge exist
+	# if not, create it
+	ip link show type bridge | grep ${bridge_interface} &>/dev/null
+	if (( ! $? )); then
+		ip link add name "${bridge_interface}" address 00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//') type bridge
+		ip link set "${bridge_interface}" up
+		ip addr add "${bridge_addr}" dev "${bridge_interface}" 
+		ip link set "${host_interface}" master "${bridge_interface}" 
+	fi
 	if ! $(grep -q "POSTROUTING -o ${host_interface} -j" /etc/iptables/iptables.rules 2>/dev/null); then
 	
 		iptables -t nat -A POSTROUTING -o "${host_interface}" -j MASQUERADE
@@ -123,7 +128,12 @@ install_cont() {
 	create_dir
 	pac_file
     pacman -r "${cont_rootfs}" -S $(grep -h -v ^# $target/$named/$workconf/cont_pkg_*) --noconfirm --config "${pac_conf}" --gpgdir "${gpg_dir}" || die " Impossible to install packages"
-  
+	
+	# pacman installation push mirrorlist to .pacsave,
+	# so copy again to erase the change
+	echo_display " Copying mirrorlist"
+	cp -af /etc/pacman.d/mirrorlist "${cont_rootfs}/etc/pacman.d/" || die " Impossible to copy mirrorlist list"
+	
     return 0
 }
 
@@ -150,7 +160,7 @@ customize_cont() {
 	echo_display " Copy pacman.conf in ${cont_rootfs}"
 	cp -f "${pac_conf}" "${cont_rootfs}"/etc || die " Impossible to copy the file ${pac_conf}"
 	
-	echo_display " Copy makepkg.conf inin ${cont_rootfs}"
+	echo_display " Copy makepkg.conf in ${cont_rootfs}"
 	cp -f "${makepkg_conf}" "${cont_rootfs}"/etc || die " Impossible to copy the file ${makepkg_conf}"
 	
 	chroot "${cont_rootfs}" "${src_functions}"/cont_customize || die " Failed to enter on ${cont_rootfs} or Failed to execute the script customizeCont"
@@ -195,7 +205,7 @@ cont_conf() {
    
     rm -f ${config}
    
-    echo "lxc.utsname = ${name}" >> "${config}" || die " Impossible to config lxc.utsname at ${config}"
+    echo "lxc.utsname = ${named}" >> "${config}" || die " Impossible to config lxc.utsname at ${config}"
 	echo "lxc.arch = ${arch}" >> "${config}" || die " Impossible to config lxc.arch at ${config}"
 	echo "lxc.rootfs = ${cont_rootfs}" >> "${config}" || die " Impossible to config lxc.rootfs at ${config}"
     if [ -e "${lxc_conf}" ]; then 
