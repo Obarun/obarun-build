@@ -29,6 +29,8 @@ result_conf="/var/cache/obarun/pkgbuild/${named}"
 
 clean_install(){
 	echo_bold "clean install"
+	
+	exit
 }
 
 usage(){
