@@ -80,6 +80,9 @@ case "${1}" in
 	build)
 		build "${named}"
 		;;
+	remake)
+		remake "${named}"
+		;;
 	*)
 	    usage
 	    exit 1
