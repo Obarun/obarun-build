@@ -149,9 +149,10 @@ build(){
 # ${2} name of the container to control
 
 lxc_command_parse(){
-	local command named loop_ ret
+	local command named loop_ opt ret
 	command="${1}"
 	named="${2}"
+	
 	if [[ -z "${named}" ]] && [[ "${command}" != @(ls|autostart|checkconfig|monitor|top|usernsexec) ]]; then
 		die " name must not be empty"
 	fi
@@ -171,9 +172,9 @@ lxc_command_parse(){
 		fi
 		case "${command}" in
 			ls|autostart|checkconfig|monitor|top|usernsexec)
-				lxc-"${command}" "$@"
+				lxc-"${command}" 
 				;;
-			*)
+			*)	
 				lxc-"${command}" -n "${named}" "$@"
 				;;
 		esac

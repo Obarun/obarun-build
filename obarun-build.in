@@ -134,28 +134,28 @@ parse_manage(){
 			exit 1	
 			;;
 		e)
-			lxc_command_parse "execute" "${named}"
+			lxc_command_parse "execute" "${named}" 
 			;;
 		f)
-			lxc_command_parse "freeze" "${named}"
+			lxc_command_parse "freeze" "${named}" 
 			;;
 		i)
-			lxc_command_parse "info" "${named}"
+			lxc_command_parse "info" "${named}" 
 			;;
 		l)
-			lxc_command_parse "ls" "${named}"
+			lxc_command_parse "ls" "${named}" 
 			;;
 		m)
-			lxc_command_parse "monitor" "${named}"
+			lxc_command_parse "monitor" "${named}" 
 			;;
 		t)
-			lxc_command_parse "top" "${named}"
+			lxc_command_parse "top" "${named}" 
 			;;
 		w)
-			lxc_command_parse "wait" "${named}"
+			lxc_command_parse "wait" "${named}" 
 			;;
 		*)
-			lxc_command_parse "${pick}" "${named}"
+			lxc_command_parse "${pick}" "${named}" 
 			;;
 	esac
 	
