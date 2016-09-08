@@ -134,28 +134,32 @@ parse_manage(){
 			exit 1	
 			;;
 		e)
-			lxc_command_parse "execute" "${named}" 
+			lxc_command_parse "execute" "${named}" "${manage_opt}"
 			;;
 		f)
-			lxc_command_parse "freeze" "${named}" 
+			lxc_command_parse "freeze" "${named}" "${manage_opt}"
 			;;
 		i)
-			lxc_command_parse "info" "${named}" 
+			lxc_command_parse "info" "${named}" "${manage_opt}"
 			;;
 		l)
-			lxc_command_parse "ls" "${named}" 
+			lxc_command_parse "ls" "${named}" "${manage_opt}"
 			;;
 		m)
-			lxc_command_parse "monitor" "${named}" 
+			lxc_command_parse "monitor" "${named}" "${manage_opt}"
 			;;
 		t)
-			lxc_command_parse "top" "${named}" 
+			lxc_command_parse "top" "${named}" "${manage_opt}"
 			;;
 		w)
-			lxc_command_parse "wait" "${named}" 
+			lxc_command_parse "wait" "${named}" "${manage_opt}"
 			;;
-		*)
-			lxc_command_parse "${pick}" "${named}" 
+		*)	
+			if [[ "${pick}" == @(ls|autostart|checkconfig|top|usernsexec) ]]; then
+				lxc_command_parse "${pick}" "${manage_opt}"
+			else
+				lxc_command_parse "${pick}" "${named}" "${manage_opt}"
+			fi
 			;;
 	esac
 	
@@ -170,7 +174,9 @@ case "${1}" in
 		parse_build "${opt}"
 		;;
 	M|Manage)
-		parse_manage "${opt}"
+		manage_opt=${@}
+		manage_opt=${manage_opt##*$opt' '}
+		parse_manage "${opt}" 
 		;;
 	*)
 	    usage
