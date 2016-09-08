@@ -68,7 +68,6 @@ if [[ "$update" == "yes" ]]; then
 	main_update
 fi
 
-#&& [[ "${1}" != @(list_db|which_db) ]]
 if [[ -z "${1}" ]]; then
 	usage
 	exit 1
