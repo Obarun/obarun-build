@@ -58,6 +58,10 @@ ${bold}Sub options :${reset}
         but some parsing are impossible. The script will warm you.
         e.g obarun-build M info container
             obarun-build M i container
+        You can extra options from lxc
+        e.g obarun-build start container --logfile out
+        e.g obarun-build start container --help to show the help of 
+        the command lxc-start
 EOF
 	exit 0
 }
