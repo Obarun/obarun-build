@@ -70,7 +70,7 @@ prepare_network(){
 	# check if the bridge exist
 	# if not, create it
 	ip link show type bridge | grep ${bridge_interface} &>/dev/null
-	if (( ! $? )); then
+	if (( $? )); then
 		ip link add name "${bridge_interface}" address 00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//') type bridge
 		ip link set "${bridge_interface}" up
 		ip addr add "${bridge_addr}" dev "${bridge_interface}" 
