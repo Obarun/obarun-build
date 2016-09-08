@@ -175,7 +175,7 @@ lxc_command_parse(){
 				lxc-"${command}" 
 				;;
 			*)	
-				lxc-"${command}" -n "${named}" "$@"
+				lxc-"${command}" -n "${named}" 
 				;;
 		esac
 	else
