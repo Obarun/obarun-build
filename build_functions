@@ -39,8 +39,9 @@ usage(){
 ${bold}Usage: ${0} [General options] [Sub options] name
 
 e.g obarun-build Create create container
-    obarun-build C c scontainer${reset}
-    obarun-build B b cups
+    obarun-build C c scontainer
+    obarun-build B b cups${reset}
+    
 ${bold}General options :${reset}
     C, Create : create a container
     B, Build : build a package onto a container
@@ -62,7 +63,6 @@ EOF
 }
 # {1} name of the container to create
 create(){
-	
 	local file
 	local -a file_list
 	mapfile -t file_list < <(ls --group-directories-first ${templates}/*)

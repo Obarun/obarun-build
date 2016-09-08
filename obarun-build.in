@@ -68,7 +68,7 @@ if [[ "$update" == "yes" ]]; then
 	main_update
 fi
 
-if [[ -z "${1}" ]]; then
+if [[ -z "${1}" || -z "${2}" ]]; then
 	usage
 	exit 1
 fi
@@ -79,6 +79,11 @@ named="${3}"
 parse_create(){
 	local pick
 	pick="${1}"
+	
+	if [[ -z "${named}" ]]; then
+		usage
+		exit 1
+	fi
 	
 	case "${pick}" in
 		c|create)	
@@ -96,6 +101,11 @@ parse_create(){
 parse_build(){
 	local pick
 	pick="${1}"
+	
+	if [[ -z "${named}" ]]; then
+		usage
+		exit 1
+	fi
 	
 	case "${pick}" in
 		b|build)
