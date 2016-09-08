@@ -158,6 +158,7 @@ parse_manage(){
 			if [[ "${pick}" == @(ls|autostart|checkconfig|top|usernsexec) ]]; then
 				lxc_command_parse "${pick}" "${manage_opt}"
 			else
+				manage_opt=${manage_opt##*$named' '}
 				lxc_command_parse "${pick}" "${named}" "${manage_opt}"
 			fi
 			;;

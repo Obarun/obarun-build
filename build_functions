@@ -169,14 +169,14 @@ lxc_command_parse(){
 				
 	if (( ! $ret )); then
 		
-		if [[ "${command}" == "stop" ]]; then
-			echo_notvalid " Trying to shutdown ${named}"
-		fi
 		case "${command}" in
 			ls|autostart|checkconfig|top|usernsexec)
-				eval lxc-"${command}" "${opt}"
+				eval lxc-"${command}" "${named}" 
 				;;
-			*)	opt=${opt##*$named}
+			*)	
+				if [[ "${command}" == "stop" ]]; then
+					echo_notvalid " Trying to shutdown ${named}"
+				fi
 				eval lxc-"${command}" -n "${named}" "${opt}"
 				;;
 		esac
