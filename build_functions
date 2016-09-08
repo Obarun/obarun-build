@@ -34,7 +34,31 @@ clean_install(){
 }
 
 usage(){
-	echo_bold "usage"
+	cat << EOF
+	
+${bold}Usage: ${0} [General options] [Sub options] name
+
+e.g obarun-build Create create container
+    obarun-build C c scontainer${reset}
+    obarun-build B b cups
+${bold}General options :${reset}
+    C, Create : create a container
+    B, Build : build a package onto a container
+    M, Manage : manage a container
+
+${bold}Sub options :${reset}
+    for Create :
+        c, create : create a container
+    for Build :
+        b, build : build a package onto a container
+        r, remake : build a package onto an archived container
+    for Manage :
+        all lxc- command. Can be designed by the first letter
+        but some parsing are impossible. The script will warm you.
+        e.g obarun-build M info container
+            obarun-build M i container
+EOF
+	exit 0
 }
 # {1} name of the container to create
 create(){
@@ -121,13 +145,49 @@ build(){
 	lxc-stop -n "${named}" -k
 }
 
-start(){
-	echo_bold "start"
+# ${1} regex for lxc- command
+# ${2} name of the container to control
+
+lxc_command_parse(){
+	local command named loop_ ret
+	command="${1}"
+	named="${2}"
+	if [[ -z "${named}" ]] && [[ "${command}" != @(ls|autostart|checkconfig|monitor|top|usernsexec) ]]; then
+		die " name must not be empty"
+	fi
+	for loop_ in $(ls /bin/|grep lxc-|sed 's:*::'); do
+		if [[ lxc-"${command}" == "${loop_}" ]]; then
+			ret=0
+			break
+		else
+			ret=1
+		fi
+	done
+				
+	if (( ! $ret )); then
+		
+		if [[ "${command}" == "stop" ]]; then
+			echo_notvalid " Trying to shutdown ${named}"
+		fi
+		case "${command}" in
+			ls|autostart|checkconfig|monitor|top|usernsexec)
+				lxc-"${command}" "$@"
+				;;
+			*)
+				lxc-"${command}" -n "${named}" "$@"
+				;;
+		esac
+	else
+		die " lxc-${command} doesn't exist"
+	fi
+	
+	exit 0
 }
 
 remake(){
-	echo_bold "remake"
+	echo_bold " Features not implemented yet"
 }
+
 ################################################################################################################
 ##																											  ##	
 ##										sub_functions														  ##
@@ -140,8 +200,4 @@ cont_create(){
 		export workconf="${workconf}"
 		export cont_create_conf="${target}/${named}/${workconf}/cont_create.conf"
 		lxc-create -n "${named}" -t "${target}/${named}/${workconf}/cont_create" || die " Impossible to create the container"
-}
-
-cont_attach(){
-	echo bla
 }

@@ -68,24 +68,105 @@ if [[ "$update" == "yes" ]]; then
 	main_update
 fi
 
-named="${2}"
+#&& [[ "${1}" != @(list_db|which_db) ]]
+if [[ -z "${1}" ]]; then
+	usage
+	exit 1
+fi
+
+opt="${2}"
+named="${3}"
+
+parse_create(){
+	local pick
+	pick="${1}"
+	
+	case "${pick}" in
+		c|create)	
+			create "${named}"
+			;;
+		*)
+			usage
+			exit 1
+			;;
+	esac
+	
+	unset pick
+}
+
+parse_build(){
+	local pick
+	pick="${1}"
+	
+	case "${pick}" in
+		b|build)
+			build "${named}"
+			;;
+		r|remake)
+			remake "${named}"
+			;;
+		*)
+			usage
+			exit 1
+			;;
+	esac
+	
+	unset pick
+}
+
+parse_manage(){
+	local pick
+	pick="${1}"
+	
+	case "${pick}" in
+		a|c|d|s|u)	
+			echo_notvalid " a parsing ambiguity exist,"
+			echo_notvalid " please insert the complete lxc- suffix command instead e.g start"
+			exit 1	
+			;;
+		e)
+			lxc_command_parse "execute" "${named}"
+			;;
+		f)
+			lxc_command_parse "freeze" "${named}"
+			;;
+		i)
+			lxc_command_parse "info" "${named}"
+			;;
+		l)
+			lxc_command_parse "ls" "${named}"
+			;;
+		m)
+			lxc_command_parse "monitor" "${named}"
+			;;
+		t)
+			lxc_command_parse "top" "${named}"
+			;;
+		w)
+			lxc_command_parse "wait" "${named}"
+			;;
+		*)
+			lxc_command_parse "${pick}" "${named}"
+			;;
+	esac
+	
+	unset pick
+}
 
 case "${1}" in
-	create)
-	    create "${named}" 
+	C|Create)
+		parse_create "${opt}"
 	    ;;
-	start)
-	    start "${named}" 
-	    ;;
-	build)
-		build "${named}"
+	B|Build)	
+		parse_build "${opt}"
 		;;
-	remake)
-		remake "${named}"
+	M|Manage)
+		parse_manage "${opt}"
 		;;
 	*)
 	    usage
 	    exit 1
 	    ;;
 esac
+
 exit 0
