@@ -156,9 +156,11 @@ parse_manage(){
 			;;
 		*)	
 			if [[ "${pick}" == @(ls|autostart|checkconfig|top|usernsexec) ]]; then
+				#echo lxc_command_parse pick="${pick}" manage_opt="${manage_opt}"
 				lxc_command_parse "${pick}" "${manage_opt}"
 			else
-				manage_opt=${manage_opt##*$named' '}
+				manage_opt=${manage_opt##*$named}
+				#echo lxc_command_parse pick="${pick}" named="${named}" manage_opt="${manage_opt}"
 				lxc_command_parse "${pick}" "${named}" "${manage_opt}"
 			fi
 			;;
@@ -175,8 +177,9 @@ case "${1}" in
 		parse_build "${opt}"
 		;;
 	M|Manage)
-		manage_opt=${@}
-		manage_opt=${manage_opt##*$opt' '}
+		manage_opt="${@}"
+		manage_opt="${manage_opt##*$opt' '}"
+		#echo firsmanage="${manage_opt}"
 		parse_manage "${opt}" 
 		;;
 	*)

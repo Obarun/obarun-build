@@ -156,9 +156,11 @@ lxc_command_parse(){
 	local command named loop_ opt ret
 	command="${1}"
 	named="${2}"
+	
 	if [[ ! -z "${3}" ]]; then
 		opt="${3}"
 	fi
+	
 	if [[ -z "${named}" ]] && [[ "${command}" != @(ls|autostart|checkconfig|top|usernsexec) ]]; then
 		die " name must not be empty"
 	fi
@@ -175,12 +177,14 @@ lxc_command_parse(){
 		
 		case "${command}" in
 			ls|autostart|checkconfig|top|usernsexec)
-				eval lxc-"${command}" "${named}" ## replacement of $opt by $named here
+				#echo eval=eval lxc-${command} named=${named}
+				eval lxc-"${command}" '${named}' ## replacement of $opt by $named here
 				;;
 			*)	
 				if [[ "${command}" == "stop" ]]; then
 					echo_notvalid " Trying to shutdown ${named}"
 				fi
+				#echo eval=eval lxc-${command} -n named=${named} opt=${opt}
 				eval lxc-"${command}" -n "${named}" "${opt}"
 				;;
 		esac
