@@ -175,7 +175,7 @@ lxc_command_parse(){
 		
 		case "${command}" in
 			ls|autostart|checkconfig|top|usernsexec)
-				eval lxc-"${command}" "${named}" 
+				eval lxc-"${command}" "${named}" ## replacement of $opt by $named here
 				;;
 			*)	
 				if [[ "${command}" == "stop" ]]; then
