@@ -18,9 +18,10 @@
 
 # functions file for obarun-build package
 
+
 source /usr/lib/obarun/common_functions
 source /etc/obarun/build.conf
-source "${cont_create_conf}"
+source "${create_conf}"
 
 trap "clean_install"  TERM HUP QUIT INT ERR KILL STOP 
 
@@ -127,7 +128,7 @@ pac_file(){
 install_cont() {
 	create_dir
 	pac_file
-    pacman -r "${cont_rootfs}" -S $(grep -h -v ^# $target/$named/$workconf/cont_pkg_*) --noconfirm --config "${pac_conf}" --gpgdir "${gpg_dir}" || die " Impossible to install packages"
+    pacman -r "${cont_rootfs}" -S $(grep -h -v ^# $target/$named/$workconf/pkglist_*) --noconfirm --config "${pac_conf}" --gpgdir "${gpg_dir}" || die " Impossible to install packages"
 	
 	# pacman installation push mirrorlist to .pacsave,
 	# so copy again to erase the change
@@ -142,14 +143,14 @@ customize_cont() {
 	
 	mkdir -p "${cont_rootfs}""${src_functions}"
 			
-	echo_display " Copying cont_customize"
-	cp -f "${target}/${named}/${workconf}/cont_customize" "${cont_rootfs}""${src_functions}" || die " Impossible to copy file customizeCont" 
+	echo_display " Copying customize"
+	cp -f "${target}/${named}/${workconf}/customize" "${cont_rootfs}""${src_functions}" || die " Impossible to copy file customizeCont" 
 	
 	echo_display " Copying build.conf"
 	cp -f "/etc/obarun/build.conf" "${cont_rootfs}""${src_functions}" || die " Impossible to copy build.conf"
 	
-	echo_display " Copying conf_build.conf"
-	cp -f "${target}/${named}/${workconf}/cont_create.conf" "${cont_rootfs}""${src_functions}" || die " Impossible to copy cont_create.conf"
+	echo_display " Copying create.conf"
+	cp -f "${target}/${named}/${workconf}/create.conf" "${cont_rootfs}""${src_functions}" || die " Impossible to copy cont_create.conf"
 	
 	echo_display " Copying locale file at ${cont_rootfs}/etc/"  
     cp -fp /etc/locale.conf /etc/locale.gen "${cont_rootfs}/etc/" || die " Impossible to copy locale file"
@@ -163,7 +164,7 @@ customize_cont() {
 	echo_display " Copy makepkg.conf in ${cont_rootfs}"
 	cp -f "${makepkg_conf}" "${cont_rootfs}"/etc || die " Impossible to copy the file ${makepkg_conf}"
 	
-	chroot "${cont_rootfs}" "${src_functions}"/cont_customize || die " Failed to enter on ${cont_rootfs} or Failed to execute the script customizeCont"
+	chroot "${cont_rootfs}" "${src_functions}"/customize || die " Failed to enter on ${cont_rootfs} or Failed to execute the script customizeCont"
 	
 	conf_console
 	
@@ -225,7 +226,7 @@ cont_conf() {
 	
 }
 
-(( EUID == 0 )) || die " ${bred}You must be run this script with root privileges"
+#(( EUID == 0 )) || die " ${bred}You must be run this script with root privileges"
 
 sanitize
 
