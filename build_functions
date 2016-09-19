@@ -238,13 +238,4 @@ remake(){
 ##										sub_functions														  ##
 ##																											  ##
 ################################################################################################################
-# ${1} name of the container to create
-cont_create(){
-	named="${1}"
-	export pass_named="${named}"
-	export workdir="${workdir}" 
-	export workconf="${workconf}" 
-	export cont_create_conf="${target}/${named}/${workconf}/cont_create.conf" 
-	lxc_command_parse "create" "${named}" -t "${target}/${named}/${workconf}/cont_create" || die " Impossible to create the container"
 
-}
