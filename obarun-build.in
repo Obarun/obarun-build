@@ -73,114 +73,112 @@ if [[ -z "${1}" || -z "${2}" ]]; then
 	exit 1
 fi
 
-opt="${2}"
-named="${3}"
+parse_command=( "${@}" )
+main_opt=( "${parse_command[0]}" )
+sub_opt=( "${parse_command[1]}" )
+named=( "${parse_command[2]}" )
+named_in_opt=( "${parse_command[@]:2}" )
+rest_opt=( "${parse_command[@]:3}" )
+
+check_var(){
+	echo main_opt=${main_opt}
+	echo sub_opt=${sub_opt}
+	echo named=${named}
+	echo named_in_opt=${named_in_opt[@]}
+	echo rest_opt=${rest_opt[@]}
+}
+#check_var
 
 parse_create(){
-	local pick
-	pick="${1}"
-	
+		
 	if [[ -z "${named}" ]]; then
+		echo_error " Name must not be empty"
 		usage
 		exit 1
 	fi
 	
-	case "${pick}" in
-		c|create)	
-			create "${named}"
+	case "${sub_opt}" in
+		c|create)
+			create "${named}" "${rest_opt[@]}"
 			;;
 		*)
 			usage
 			exit 1
 			;;
 	esac
-	
-	unset pick
+
 }
 
 parse_build(){
-	local pick
-	pick="${1}"
-	
+		
 	if [[ -z "${named}" ]]; then
+		echo_error " Name must not be empty"
 		usage
 		exit 1
 	fi
 	
-	case "${pick}" in
+	case "${sub_opt}" in
 		b|build)
-			build "${named}"
+		echo 
+			build "${named}" "${rest_opt[@]}"
 			;;
 		r|remake)
-			remake "${named}"
+			remake "${named}" "${rest_opt[@]}"
 			;;
 		*)
 			usage
 			exit 1
 			;;
 	esac
-	
-	unset pick
+
 }
 
 parse_manage(){
-	local pick
-	pick="${1}"
-	
-	case "${pick}" in
+		
+	case "${sub_opt}" in
 		a|c|d|s|u)	
 			echo_notvalid " a parsing ambiguity exist,"
 			echo_notvalid " please insert the complete lxc- suffix command instead e.g start"
 			exit 1	
 			;;
+		# Allow one character selection for other command
 		e)
-			lxc_command_parse "execute" "${named}" "${manage_opt}"
+			lxc_command_parse "execute" "${named_in_opt[@]}"
 			;;
 		f)
-			lxc_command_parse "freeze" "${named}" "${manage_opt}"
+			lxc_command_parse "freeze" "${named_in_opt[@]}"
 			;;
 		i)
-			lxc_command_parse "info" "${named}" "${manage_opt}"
+			lxc_command_parse "info" "${named_in_opt[@]}"
 			;;
 		l)
-			lxc_command_parse "ls" "${named}" "${manage_opt}"
+			lxc_command_parse "ls" "${named_in_opt[@]}"
 			;;
 		m)
-			lxc_command_parse "monitor" "${named}" "${manage_opt}"
+			lxc_command_parse "monitor" "${named_in_opt[@]}"
 			;;
 		t)
-			lxc_command_parse "top" "${named}" "${manage_opt}"
+			lxc_command_parse "top" "${named_in_opt[@]}"
 			;;
 		w)
-			lxc_command_parse "wait" "${named}" "${manage_opt}"
+			lxc_command_parse "wait" "${named_in_opt[@]}"
 			;;
 		*)	
-			if [[ "${pick}" == @(ls|autostart|checkconfig|top|usernsexec) ]]; then
-				#echo lxc_command_parse pick="${pick}" manage_opt="${manage_opt}"
-				lxc_command_parse "${pick}" "${manage_opt}"
-			else
-				manage_opt=${manage_opt##*$named}
-				#echo lxc_command_parse pick="${pick}" named="${named}" manage_opt="${manage_opt}"
-				lxc_command_parse "${pick}" "${named}" "${manage_opt}"
-			fi
+			lxc_command_parse "${sub_opt}" "${named_in_opt[@]}"
 			;;
 	esac
 	
-	unset pick
 }
 
-case "${1}" in
+case "${main_opt}" in
 	C|Create)
-		parse_create "${opt}"
+		parse_create 
 	    ;;
 	B|Build)	
-		parse_build "${opt}"
+		parse_build 
 		;;
 	M|Manage)
-		manage_opt="${@}"
-		manage_opt="${manage_opt##*$opt' '}"
-		#echo firsmanage="${manage_opt}"
-		parse_manage "${opt}" 
+		parse_manage 
 		;;
 	*)
 	    usage
