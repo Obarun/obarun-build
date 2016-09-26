@@ -21,6 +21,7 @@
 
 source /usr/lib/obarun/common_functions
 source /etc/obarun/build.conf
+source /usr/lib/obarun/build_functions
 source "${create_conf}"
 
 trap "clean_install"  TERM HUP QUIT INT ERR KILL STOP 
@@ -29,7 +30,7 @@ clean_install() {
     echo_display " Cleaning up"
     lxc-destroy -n "${named}"
     rm -rf "${cont_path}"
-    destroy_network
+    network_destroy
     exit
 }
 
@@ -64,35 +65,6 @@ sanitize(){
 	if [ -d _cont_conf ]; then
 		lxc-destroy -n "${named}"
     fi
-}
-
-prepare_network(){
-	
-	# check if the bridge exist
-	# if not, create it
-	ip link show type bridge | grep ${bridge_interface} &>/dev/null
-	if (( $? )); then
-		ip link add name "${bridge_interface}" address 00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//') type bridge
-		ip link set "${bridge_interface}" up
-		ip addr add "${bridge_addr}" dev "${bridge_interface}" 
-		ip link set "${host_interface}" master "${bridge_interface}" 
-	fi
-	if ! $(grep -q "POSTROUTING -o ${host_interface} -j" /etc/iptables/iptables.rules 2>/dev/null); then
-	
-		iptables -t nat -A POSTROUTING -o "${host_interface}" -j MASQUERADE
-	
-		echo_info "-t nat -A POSTROUTING -o "${host_interface}" -j MASQUERADE" 
-		echo_info "was added to your /etc/iptables/iptables.rules"
-	fi
-	
-	return 0
-}
-destroy_network(){
-	
-	ip link set "${host_interface}" nomaster
-	ip link set "${bridge_interface}" down
-	ip link delete "${bridge_interface}" type bridge
-	ip route add default via "${router_addr}"
 }
 
 create_dir(){
@@ -231,7 +203,7 @@ cont_conf() {
 sanitize
 
 if (( ${create_bridge} ));then
-	prepare_network
+	network_create
 fi
 
 mkdir -p "${cont_rootfs}"
