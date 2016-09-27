@@ -89,7 +89,6 @@ lxc_command_parse(){
 				echo_notvalid " Trying to shutdown ${named}, this may take time..."
 			fi
 			rest_opt=( "${parse_opt[@]:2}" )
-			echo "lxc-${command}" -n "${parse_opt[1]}" "${rest_opt[@]}"
 			"lxc-${command}" -n "${parse_opt[1]}" "${rest_opt[@]}" || return 1 #die " Aborting command : lxc-${command} -n ${parse_opt[1]} ${rest_opt[@]}"
 		fi
 	else
