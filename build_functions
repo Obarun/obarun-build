@@ -222,6 +222,7 @@ build(){
 	reply_answer
 	if (( ! $? )); then
 		lxc_command_parse "destroy" "${named}-${named_version}"
+		rm -rf "${target}/${named}-${named_version}"
 	fi
 }
 
