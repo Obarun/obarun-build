@@ -38,7 +38,7 @@ fi
 if [[ -f /tmp/obarun-build-tmp/create.conf ]]; then
 	source /tmp/obarun-build-tmp/create.conf
 else
-	echo_error " Missing file : cont_create.conf"
+	echo_error " Missing file : create.conf"
 	exit
 fi
 
