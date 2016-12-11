@@ -142,7 +142,7 @@ custo_once config_root
 add_at_logroup(){
 	
 	echo_display " add {root,$newuser} at log group"
-	gpasswd -a root log || die " Impossible to add root at log group"
+	#gpasswd -a root log || die " Impossible to add root at log group"
 	gpasswd -a "$newuser" log || die " Impossible to add user ${newuser} at log group"
 	
 }
