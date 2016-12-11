@@ -100,6 +100,8 @@ pac_file(){
 install_cont() {
 	create_dir
 	pac_file
+	
+	# install package
     pacman -r "${cont_rootfs}" -S $(grep -h -v ^# $target/$named/$workconf/pkglist_*) --noconfirm --config "${pac_conf}" --gpgdir "${gpg_dir}" || die " Impossible to install packages"
 	
 	# pacman installation push mirrorlist to .pacsave,
