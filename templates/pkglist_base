@@ -1,7 +1,5 @@
 ######One application per line, you can use # to comment a line, blank line are ignored
 
-##			base no-systemd
-
 bash
 bzip2
 coreutils
@@ -61,29 +59,3 @@ which
 sudo
 net-tools
 
-autoconf
-automake
-binutils
-bison
-fakeroot
-flex
-gcc
-groff
-libtool
-m4
-make
-patch
-pkg-config
-
-s6
-s6-linux-utils
-s6-portable-utils
-s6-rc
-s6-boot
-skalibs
-execline
-s6opts
-pacopts
-obarun-libs
-
-haveged

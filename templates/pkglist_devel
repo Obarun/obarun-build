@@ -1,0 +1,15 @@
+######One application per line, you can use # to comment a line, blank line are ignored
+
+autoconf
+automake
+binutils
+bison
+fakeroot
+flex
+gcc
+groff
+libtool
+m4
+make
+patch
+pkg-config

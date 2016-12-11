@@ -1,0 +1,17 @@
+######One application per line, you can use # to comment a line, blank line are ignored
+
+execline
+obarun-libs
+pacopts
+s6
+s6opts
+s6-boot
+s6-linux-init
+s6-linux-utils
+s6-portable-utils
+s6-rc
+skalibs
+
+
+
+
