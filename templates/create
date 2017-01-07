@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 #
 # template script for generating Obarun container with lxc
 #	
@@ -18,19 +18,44 @@
 
 # functions file for obarun-build package
 
+sourcing(){
+	
+	local list
+	
+	for list in /usr/lib/obarun/{common_functions,build_functions} /etc/obarun/build.conf; do
+		if [[ -f "${list}" ]]; then
+			source "${list}"
+		else
+			echo_error " Missing file : ${list}"
+			exit	
+		fi
+	done
+	
+	unset list
+}
+sourcing
 
-source /usr/lib/obarun/common_functions
-source /etc/obarun/build.conf
-source /usr/lib/obarun/build_functions
 source "${create_conf}"
+
+shellopts_save
+shellopts_set_unset "extglob" 0
 
 trap "clean_install"  TERM HUP QUIT INT ERR KILL STOP 
 
 clean_install() {
+    
     echo_display " Cleaning up"
+    
+    echo_valid " Destroying $named"
     lxc-destroy -n "${named}"
-    rm -rf "${cont_path}"
+    rm -rf "${CONT_PATH}"
+    
+    echo_valid " Destroying network"
     network_destroy
+    
+    echo_valid " Restore your shell options"
+    shellopts_restore
+    
     exit
 }
 
@@ -39,7 +64,6 @@ for arg in "$@"; do
     [ "$arg" = "--" ] && break
     if [ "$arg" = "--mapped-uid" -o "$arg" = "--mapped-gid" ]; then
         echo "This template can't be used for unprivileged containers." 1>&2
-        echo "You may want to try the \"download\" template instead." 1>&2
         exit 1
     fi
 done
@@ -50,46 +74,46 @@ export PATH=$PATH:/usr/local/bin:/usr/bin:/sbin:/bin
 # Ensure strict root's umask doesn't render the VM unusable
 umask 022
 
-if [ -z "$arch" ]; then
+if [ -z "$ARCH" ]; then
 	case "$(uname -m)" in
-		i?86) arch=i486 ;;
-		arm*) arch=arm ;;
-		*) arch=$(uname -m) ;;
+		i?86) ARCH=i486 ;;
+		arm*) ARCH=arm ;;
+		*) ARCH=$(uname -m) ;;
 	esac
 fi
 
 sanitize(){
-	if [ -d "${cont_path}" ]; then
-		rm -rf "${cont_path}"
+	if [ -d "${CONT_PATH}" ]; then
+		rm -rf "${CONT_PATH}"
 	fi
-	if [ -d _cont_conf ]; then
-		lxc-destroy -n "${named}"
-    fi
+	#if [ -d "${CONT_CONF}" ]; then
+	#	lxc-destroy -n "${named}"
+    #fi
 }
 
 create_dir(){
 	
-	echo_notvalid " Create needed directory in ${cont_rootfs}"
-	mkdir -m 0755 -p "${cont_rootfs}"/var/{cache/pacman/pkg,lib/pacman,lib/pacman/sync,log} "${cont_rootfs}"/{dev,run,etc,etc/pacman.d}
-	mkdir -m 0755 -p "${cont_rootfs}"/dev/{pts,shm}
-	mkdir -m 1777 -p "${cont_rootfs}"/tmp
-	mkdir -m 0555 -p "${cont_rootfs}"/{sys,proc}
+	echo_notvalid " Create needed directory in ${CONT_ROOTFS}"
+	mkdir -m 0755 -p "${CONT_ROOTFS}"/var/{cache/pacman/pkg,lib/pacman,lib/pacman/sync,log} "${CONT_ROOTFS}"/{dev,run,etc,etc/pacman.d}
+	mkdir -m 0755 -p "${CONT_ROOTFS}"/dev/{pts,shm}
+	mkdir -m 1777 -p "${CONT_ROOTFS}"/tmp
+	mkdir -m 0555 -p "${CONT_ROOTFS}"/{sys,proc}
 	
 	return 0
 }
 
 pac_file(){
 	
-	if [[ -d /etc/pacman.d/gnupg && ! -d $cont_rootfs/etc/pacman.d/gnupg ]]; then
+	if [[ -d /etc/pacman.d/gnupg && ! -d $CONT_ROOTFS/etc/pacman.d/gnupg ]]; then
 		echo_display " Copying gnupg directory"
-		cp -a /etc/pacman.d/gnupg "${cont_rootfs}/etc/pacman.d/" || die " Impossible to copy gnupg directory"
+		cp -a /etc/pacman.d/gnupg "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy gnupg directory"
 	fi
 	
 	echo_display " Copying mirrorlist"
-	cp -af /etc/pacman.d/mirrorlist "${cont_rootfs}/etc/pacman.d/" || die " Impossible to copy mirrorlist list"
+	cp -af /etc/pacman.d/mirrorlist "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy mirrorlist list"
 	
 	echo_display " Copying pacman database"
-	cp -f "/var/lib/pacman/sync/"*.* "${cont_rootfs}/var/lib/pacman/sync/" || die " Impossible to copy pacman database"
+	cp -f "/var/lib/pacman/sync/"*.* "${CONT_ROOTFS}/var/lib/pacman/sync/" || die " Impossible to copy pacman database"
 	
 	return 0 
 }
@@ -102,12 +126,12 @@ install_cont() {
 	pac_file
 	
 	# install package
-    pacman -r "${cont_rootfs}" -S $(grep -h -v ^# $target/$named/$workconf/pkglist_*) --noconfirm --config "${pac_conf}" --gpgdir "${gpg_dir}" || die " Impossible to install packages"
+    pacman -r "${CONT_ROOTFS}" -S $(grep -h -v ^# $TARGET/$named/$WORKCONF/pkglist_*) --noconfirm --config "${PAC_CONF}" --gpgdir "${GPG_DIR}" || die " Impossible to install packages"
 	
 	# pacman installation push mirrorlist to .pacsave,
 	# so copy again to erase the change
 	echo_display " Copying mirrorlist"
-	cp -af /etc/pacman.d/mirrorlist "${cont_rootfs}/etc/pacman.d/" || die " Impossible to copy mirrorlist list"
+	cp -af /etc/pacman.d/mirrorlist "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy mirrorlist list"
 	
     return 0
 }
@@ -115,30 +139,30 @@ install_cont() {
 # customize container
 customize_cont() {
 	
-	mkdir -p "${cont_rootfs}""${src_functions}"
+	mkdir -p "${CONT_ROOTFS}""${SOURCES_FUNC}"
 			
 	echo_display " Copying customize"
-	cp -f "${target}/${named}/${workconf}/customize" "${cont_rootfs}""${src_functions}" || die " Impossible to copy file customizeCont" 
+	cp -f "${TARGET}/${named}/${WORKCONF}/customize" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy file customizeCont" 
 	
 	echo_display " Copying build.conf"
-	cp -f "/etc/obarun/build.conf" "${cont_rootfs}""${src_functions}" || die " Impossible to copy build.conf"
+	cp -f "/etc/obarun/build.conf" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy build.conf"
 	
 	echo_display " Copying create.conf"
-	cp -f "${target}/${named}/${workconf}/create.conf" "${cont_rootfs}""${src_functions}" || die " Impossible to copy cont_create.conf"
+	cp -f "${TARGET}/${named}/${WORKCONF}/create.conf" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy cont_create.conf"
 	
-	echo_display " Copying locale file at ${cont_rootfs}/etc/"  
-    cp -fp /etc/locale.conf /etc/locale.gen "${cont_rootfs}/etc/" || die " Impossible to copy locale file"
+	echo_display " Copying locale file at ${CONT_ROOTFS}/etc/"  
+    cp -fp /etc/locale.conf /etc/locale.gen "${CONT_ROOTFS}/etc/" || die " Impossible to copy locale file"
 	
-	echo_display " Copy resolv.conf in ${cont_rootfs}"
-	cp -f /etc/resolv.conf "${cont_rootfs}/etc/resolv.conf" || die " Impossible to copy the file resolv.conf"
+	echo_display " Copy resolv.conf in ${CONT_ROOTFS}"
+	cp -f /etc/resolv.conf "${CONT_ROOTFS}/etc/resolv.conf" || die " Impossible to copy the file resolv.conf"
 	
-	echo_display " Copy pacman.conf in ${cont_rootfs}"
-	cp -f "${pac_conf}" "${cont_rootfs}"/etc || die " Impossible to copy the file ${pac_conf}"
+	echo_display " Copy pacman.conf in ${CONT_ROOTFS}"
+	cp -f "${PAC_CONF}" "${CONT_ROOTFS}"/etc || die " Impossible to copy the file ${PAC_CONF}"
 	
-	echo_display " Copy makepkg.conf in ${cont_rootfs}"
-	cp -f "${makepkg_conf}" "${cont_rootfs}"/etc || die " Impossible to copy the file ${makepkg_conf}"
+	echo_display " Copy makepkg.conf in ${CONT_ROOTFS}"
+	cp -f "${MAKEPKG_CONF}" "${CONT_ROOTFS}"/etc || die " Impossible to copy the file ${MAKEPKG_CONF}"
 	
-	chroot "${cont_rootfs}" "${src_functions}"/customize || die " Failed to enter on ${cont_rootfs} or Failed to execute the script customizeCont"
+	chroot "${CONT_ROOTFS}" "${SOURCES_FUNC}"/customize || die " Failed to enter on ${CONT_ROOTFS} or Failed to execute the script customizeCont"
 	
 	conf_console
 	
@@ -148,26 +172,26 @@ conf_console(){
 	
 	# enable getty on active ttys
 	# enable getty on active ttys
-    local nttys=$(cat "${lxc_conf}" | grep "^lxc.tty" | head -n1 | cut -d= -f2 | tr -d "[:blank:]")
-    local devttydir=$(cat "${lxc_conf}" | grep "^lxc.devttydir" | head -n1 | cut -d= -f2 | tr -d "[:blank:]")
+    local nttys=$(grep "^lxc.tty" "${START_CONF}"| head -n1 | cut -d= -f2 | tr -d "[:blank:]")
+    local devttydir=$(grep "^lxc.devttydir" "${START_CONF}" | head -n1 | cut -d= -f2 | tr -d "[:blank:]")
     local devtty=""
     
     # bind getty instances to /dev/<devttydir>/tty* if lxc.devttydir is set
     if [[ -n "${devttydir}" ]]; then
 		devtty="${devttydir}-"
-		echo "${devttydir}/console" >> "${cont_rootfs}/etc/securetty" || die " Impossible to set ${devttydir}/console in ${cont_rootfs}/etc/securetty"
+		echo "${devttydir}/console" >> "${CONT_ROOTFS}/etc/securetty" || die " Impossible to set ${devttydir}/console in ${CONT_ROOTFS}/etc/securetty"
 	fi
     
     # update securetty to allow console login if devttydir is set
     if [ -n "${devttydir}" ]; then
         for i in $(seq 1 ${nttys:-1}); do
-            echo "${devttydir}/tty${i}" >> "${cont_rootfs}/etc/securetty" || die " Impossible to set ${devttydir}/tty${i} in ${cont_rootfs}/etc/securetty"
+            echo "${devttydir}/tty${i}" >> "${CONT_ROOTFS}/etc/securetty" || die " Impossible to set ${devttydir}/tty${i} in ${CONT_ROOTFS}/etc/securetty"
         done
     fi
 	
 	# optional here, do not die if an error is created
-	echo "# For libvirt/Virtual Machine Monitor" >>${cont_rootfs}/etc/securetty
-    echo "pts/0"        >>${cont_rootfs}/etc/securetty
+	echo "# For libvirt/Virtual Machine Monitor" >> ${CONT_ROOTFS}/etc/securetty
+    echo "pts/0"        >> ${CONT_ROOTFS}/etc/securetty
     
     return 0
 }
@@ -175,25 +199,25 @@ conf_console(){
 # Write container configuration files
 cont_conf() {
 	
-    mkdir -p "${_cont_conf}" || die " Impossible to make directory ${_cont_conf}"
-    local config="${_cont_conf}/config" lxc_network_hwaddr=00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//')
+    mkdir -p "${CONT_CONF}" || die " Impossible to make directory ${_cont_conf}"
+    local config="${CONT_CONF}/config" LXC_NETWORK_HWADDR=00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//')
    
     rm -f ${config}
    
     echo "lxc.utsname = ${named}" >> "${config}" || die " Impossible to config lxc.utsname at ${config}"
-	echo "lxc.arch = ${arch}" >> "${config}" || die " Impossible to config lxc.arch at ${config}"
-	echo "lxc.rootfs = ${cont_rootfs}" >> "${config}" || die " Impossible to config lxc.rootfs at ${config}"
-    if [ -e "${lxc_conf}" ]; then 
-        echo "lxc.include = ${lxc_conf}" >> "${config}" || die " Impossible to config lxc.include at ${config}"
+	echo "lxc.arch = ${ARCH}" >> "${config}" || die " Impossible to config lxc.arch at ${config}"
+	echo "lxc.rootfs = ${CONT_ROOTFS}" >> "${config}" || die " Impossible to config lxc.rootfs at ${config}"
+    if [ -e "${START_CONF}" ]; then 
+        echo "lxc.include = ${START_CONF}" >> "${config}" || die " Impossible to config lxc.include at ${config}"
     fi
-    if (( ${create_bridge} ));then
-		echo "lxc.network.type = ${lxc_network_type}" >> "${config}" || die " Impossible to config lxc.network.type at ${config}"
-		echo "lxc.network.link = ${lxc_network_link}" >> "${config}" || die " Impossible to config lxc.network.link at ${config}"
-		echo "lxc.network.flags = ${lxc_network_flags}" >> "${config}" || die " Impossible to config lxc.network.flags at ${config}"
-		echo "lxc.network.ipv4 = ${lxc_network_ipv4}" >> "${config}" || die " Impossible to config lxc.network.ipv4 at ${config}"
-		echo "lxc.network.ipv4.gateway = ${lxc_network_ipv4_gateway}" >> "${config}" || die " Impossible to config lxc.network.ipv4.gateway at ${config}"
-		echo "lxc.network.name=${lxc_network_name}" >> "${config}" || die " Impossible to config lxc.network.name at ${config}"
-		echo "lxc.network.hwaddr=${lxc_network_hwaddr}" >> "${config}" || die " Impossible to config lxc.network.hwaddr at ${config}"
+    if (( ${CREATE_BRIDGE} ));then
+		echo "lxc.network.type = ${LXC_NETWORK_TYPE}" >> "${config}" || die " Impossible to config lxc.network.type at ${config}"
+		echo "lxc.network.link = ${LXC_NETWORK_LINK}" >> "${config}" || die " Impossible to config lxc.network.link at ${config}"
+		echo "lxc.network.flags = ${LXC_NETWORK_FLAGS}" >> "${config}" || die " Impossible to config lxc.network.flags at ${config}"
+		echo "lxc.network.ipv4 = ${LXC_NETWORK_IPV4}" >> "${config}" || die " Impossible to config lxc.network.ipv4 at ${config}"
+		echo "lxc.network.ipv4.gateway = ${LXC_NETWORK_IPV4_GATEWAY}" >> "${config}" || die " Impossible to config lxc.network.ipv4.gateway at ${config}"
+		echo "lxc.network.name=${LXC_NETWORK_NAME}" >> "${config}" || die " Impossible to config lxc.network.name at ${config}"
+		echo "lxc.network.hwaddr=${LXC_NETWORK_HWADDR}" >> "${config}" || die " Impossible to config lxc.network.hwaddr at ${config}"
     fi
     
 	return 0
@@ -202,13 +226,13 @@ cont_conf() {
 
 #(( EUID == 0 )) || die " ${bred}You must be run this script with root privileges"
 
-sanitize
+#sanitize
 
-if (( ${create_bridge} ));then
+if (( ${CREATE_BRIDGE} ));then
 	network_create
 fi
 
-mkdir -p "${cont_rootfs}"
+mkdir -p "${CONT_ROOTFS}"
 
 install_cont
 
@@ -216,5 +240,5 @@ customize_cont
 
 cont_conf
 
-echo_valid " The configuration file is stored in ${lxc_conf}."
+echo_valid " The configuration file is stored in ${START_CONF}."
 

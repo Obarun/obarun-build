@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 #
 # This script is used by cont_create script for customize the fresh container 
 #
@@ -17,35 +17,31 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
 
 
-
-shopt -s extglob
-
 ##		Check is the functions file exits
+sourcing(){
+	
+	local list
+	
+	for list in /usr/lib/obarun/common_functions /tmp/obarun-build-tmp/{build.conf,create.conf} ; do
+		if [[ -f "${list}" ]]; then
+			source "${list}"
+		else
+			echo_error " Missing file : ${list}"
+			exit	
+		fi
+	done
+	
+	unset list
+}
+sourcing
 
-if [[ -f /usr/lib/obarun/common_functions ]]; then
-	source /usr/lib/obarun/common_functions
-else
-	echo "==>> Missing file : common_functions"
-	exit	
-fi
-
-if [[ -f /tmp/obarun-build-tmp/build.conf ]]; then
-	source /tmp/obarun-build-tmp/build.conf
-else
-	echo_error " Missing file : build.conf"
-	exit
-fi
-if [[ -f /tmp/obarun-build-tmp/create.conf ]]; then
-	source /tmp/obarun-build-tmp/create.conf
-else
-	echo_error " Missing file : create.conf"
-	exit
-fi
+shellopts_save
+shellopts_set_unset "extglob" 0
 
 custo_once() {
 	
 	local _tmp
-	_tmp="${src_functions}"
+	_tmp="${SOURCES_FUNC}"
 	
 	if [[ ! -d $_tmp ]]; then
 		mkdir -p -m0750 $_tmp || die " Impossible to create $_tmp"
@@ -60,16 +56,16 @@ custo_once() {
 
 config_hostname(){
 	
-	echo_display " Define hostname as : ${hostname}"
-	if [[ "$hostname" != "" ]]; then
+	echo_display " Define hostname as : ${HOSTNAME}"
+	if [[ -n "$HOSTNAME" ]]; then
 		sed -i 's/ .*$//' /etc/hosts || die " Impossible to define hosts"
 	fi
 
-	sed -i "s/HOSTNAME=.*$/HOSTNAME=$hostname/g" /etc/s6/s6.conf || die " Impossible to define hostname on s6.conf"
+	sed -i "s/HOSTNAME=.*$/HOSTNAME=$HOSTNAME/g" /etc/s6/s6.conf || die " Impossible to define hostname on s6.conf"
 	
-	echo "$hostname" > /etc/hostname || die " Impossible to define hostname"
-	sed -i '/127.0.0.1/s/$/ '$hostname'/' /etc/hosts || die " Impossible to define hosts"
-	sed -i '/::1/s/$/ '$hostname'/' /etc/hosts || die " Impossible to define hosts"
+	echo "$HOSTNAME" > /etc/hostname || die " Impossible to define hostname"
+	sed -i '/127.0.0.1/s/$/ '$HOSTNAME'/' /etc/hosts || die " Impossible to define hosts"
+	sed -i '/::1/s/$/ '$HOSTNAME'/' /etc/hosts || die " Impossible to define hosts"
 	
 	echo_valid " hostname was configured successfully"
 	
@@ -80,7 +76,7 @@ config_locale(){
 	
 	echo_display " Define locale"
 	locale-gen || die " Impossible to launch locale-gen"
-	echo LANG="$locale" > /etc/locale.conf || die " Impossible to define locale.conf"
+	echo LANG="$LOCALE" > /etc/locale.conf || die " Impossible to define locale.conf"
     echo LC_COLLATE=C >> /etc/locale.conf || die " Impossible to define locale.conf"
 	
 	echo_valid " Locale was created successfully"
@@ -91,13 +87,13 @@ custo_once config_locale
 config_localetime(){
 	
 	echo_display " Define localtime"
-	if [[ "$subzone" != "" ]]; then
-		ln -sf /usr/share/zoneinfo/$zone/$subzone /etc/localtime || die " Impossible to define localtime"
-		sed -i "s/TZ=.*$/TZ=$zone\/$subzone/g" /etc/s6/s6.conf || die " Impossible to define localtime on s6.conf"
+	if [[ "$SUBZONE" != "" ]]; then
+		ln -sf /usr/share/zoneinfo/$ZONE/$SUBZONE /etc/localtime || die " Impossible to define localtime"
+		sed -i "s/TZ=.*$/TZ=$ZONE\/$SUBZONE/g" /etc/s6/s6.conf || die " Impossible to define localtime on s6.conf"
 				
 	else
-		ln -sf /usr/share/zoneinfo/$zone /etc/localtime || die " Impossible to define localtime"
-		sed -i "s/TZ=.*$/TZ=$zone/g" /etc/s6/s6.conf || die " Impossible to define localtime on s6.conf"
+		ln -sf /usr/share/zoneinfo/$ZONE /etc/localtime || die " Impossible to define localtime"
+		sed -i "s/TZ=.*$/TZ=$ZONE/g" /etc/s6/s6.conf || die " Impossible to define localtime on s6.conf"
 	fi
 	
 	echo_valid " Localetime was configured successfully"
@@ -108,7 +104,7 @@ custo_once config_localetime
 config_keymap(){
 	
 	echo_display " Define keymap" 
-	sed -i "s,KEYMAP=.*$,KEYMAP=$keymap,g" /etc/s6/s6.conf || die " Impossible to set ${keymap} on s6.conf"
+	sed -i "s,KEYMAP=.*$,KEYMAP=$ZONE,g" /etc/s6/s6.conf || die " Impossible to set ${keymap} on s6.conf"
 		
 	echo_valid " Console keymap was configured successfully"
 	
@@ -117,13 +113,13 @@ custo_once config_keymap
 
 config_user(){
 	
-	echo_display " Define ${newuser}"
+	echo_display " Define ${NEWUSER}"
 	
-	user_add "${newuser}"
+	user_add "${NEWUSER}"
 	
-	echo "${newuser}:${passw_user}" | chpasswd || die " Failed to change $newuser password"
+	echo "${NEWUSER}:${PASSW_USER}" | chpasswd || die " Failed to change $newuser password"
 	
-	echo_valid " User ${newuser} was created successfully" 
+	echo_valid " User ${NEWUSER} was created successfully" 
 	
 }
 custo_once config_user
@@ -132,7 +128,7 @@ config_root(){
 	
 	echo_display " Define root"
 
-	echo "root:${passw_root}" | chpasswd || die " Failed to change root password"
+	echo "root:${PASSW_ROOT}" | chpasswd || die " Failed to change root password"
 	
 	echo_valid " root user was configured successfully" 
 	
@@ -141,12 +137,14 @@ custo_once config_root
 
 add_at_logroup(){
 	
-	echo_display " add {root,$newuser} at log group"
+	echo_display " add $NEWUSER at log group"
 	#gpasswd -a root log || die " Impossible to add root at log group"
-	gpasswd -a "$newuser" log || die " Impossible to add user ${newuser} at log group"
+	gpasswd -a "$NEWUSER" log || die " Impossible to add user ${newuser} at log group"
 	
 }
 custo_once add_at_logroup 
 
+shellopts_restore
+	
 echo_display " Customization terminate"
 

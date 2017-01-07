@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 #
 # Functions file for obarun-build package
 #
@@ -16,18 +16,21 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
  
-
-shopt -s extglob
-
-source /usr/lib/obarun/common_functions
-source /etc/obarun/build.conf
-
-templates="${templates:-/usr/share/obarun/obarun-build/templates}"
-workdir="container"
-workconf="config"
+TEMPLATES="${TEMPLATES:-/usr/share/obarun/obarun-build/templates}"
+WORKDIR="container"
+WORKCONF="config"
 
 clean_install(){
-	echo_bold "clean install"
+	
+	echo_display " Cleaning up"
+	
+	if [[ -d "${TARGET}/${named}/${WORKCONF}" ]]; then
+		echo_valid " Removing ${TARGET}/${named}/${WORKCONF}"
+		rm -rf "${TARGET}/${named}/"
+	fi
+	
+	echo_valid " Restore your shell options"
+	shellopts_restore
 	
 	exit
 }
@@ -92,11 +95,9 @@ lxc_command_parse(){
 			"lxc-${command}" -n "${parse_opt[1]}" "${rest_opt[@]}" || return 1 #die " Aborting command : lxc-${command} -n ${parse_opt[1]} ${rest_opt[@]}"
 		fi
 	else
-		die " lxc-${command} doesn't exist"
+		die " lxc-${command} doesn't exist" "clean_install"
 	fi
-	
-	#echo_valid " Done"
-	
+		
 	return 0
 }
 
@@ -106,7 +107,7 @@ create(){
 	local file named
 	local -a file_list _args
 	
-	mapfile -t file_list < <(ls --group-directories-first ${templates}/*)
+	mapfile -t file_list < <(ls --group-directories-first ${TEMPLATES}/*)
 	
 	named="${1}"
 	_args=( "${@}" )
@@ -114,7 +115,7 @@ create(){
 
 	# check if container directory exist
 	# if yes then exit container exit
-	check_dir "${target}/${named}"
+	check_dir "${TARGET}/${named}"
 	if (( ! $? )); then
 		echo_info " Container already exit, do you want overwrite it? [y|n] :"
 		reply_answer
@@ -122,31 +123,31 @@ create(){
 			die " Exiting"
 		fi
 	fi
-	# check if templates directory exist on $target
+	# check if templates directory exist on $TARGET
 	# create it if doesn't exist
-	check_dir "${target}/${named}/${workconf}"
+	check_dir "${TARGET}/${named}/${WORKCONF}"
 	if (( $? )); then
-		echo_display " Create ${target}/${named}/${workconf}"
-		mkdir -p "${target}/${named}/${workconf}" || die " Impossible to create directory ${target}/${named}/${workconf}" 
+		echo_display " Create ${TARGET}/${named}/${WORKCONF}"
+		mkdir -p "${TARGET}/${named}/${WORKCONF}" || die " Impossible to create directory ${TARGET}/${named}/${WORKCONF}" "clean_install"
 	fi
 	# check if configuration templates exist
 	# if not create it
 	for file in "${file_list[@]}"; do
 		file=${file##*/}
-		search_in_dir "${target}/${named}" "${workconf}" "${file}"
+		search_in_dir "${TARGET}/${named}" "${WORKCONF}" "${file}"
 		if (( $? )); then
-			echo_display " Copy ${file} templates file to ${target}/${named}/${workconf}"
-			cp "${templates}/${file}" "${target}/${named}/${workconf}" || die " Impossible to copy ${file}"
+			echo_display " Copy ${file} templates file to ${TARGET}/${named}/${WORKCONF}"
+			cp "${TEMPLATES}/${file}" "${TARGET}/${named}/${WORKCONF}" || die " Impossible to copy ${file}" "clean_install"
 		fi
 	done
 	
 	# now we have to correct place to find configuration file to create and configure the container
 	# so, exporting the good one
-	export create_conf="${target}/${named}/${workconf}/create.conf"
+	export create_conf="${TARGET}/${named}/${WORKCONF}/create.conf"
 	export named="${named}"
-	export workdir="${workdir}"
-	export workconf="${workconf}"
-	lxc_command_parse "create" "${named}" -t "${target}/${named}/${workconf}/create" "${_args[@]}" || die " Impossible to create the container"
+	export WORKDIR="${WORKDIR}"
+	export WORKCONF="${WORKCONF}"
+	lxc_command_parse "create" "${named}" -t "${TARGET}/${named}/${WORKCONF}/create" "${_args[@]}" || die " Impossible to create the container" "clean_install"
 	
 }
 
@@ -160,25 +161,31 @@ build(){
 	_args=( "${_args[@]:1}" )
 
 	# check if sources variables is set
-	if [[ -z "${sources}" ]]; then
-		die " Aborting : sources variables on /etc/obarun/build.conf is not set"
+	if [[ -z "${SOURCES}" ]]; then
+		die " Aborting : sources variables on /etc/obarun/build.conf is not set" "clean_install"
 	fi
 	
-	# be sure that $named exist on $sources directory
-	check_dir "${sources}/${named}"
+	# be sure that $named exist on $SOURCES directory
+	check_dir "${SOURCES}/${named}"
 	if (( $? )); then
-		die " ${named} do not exist on ${sources} directory"
+		die " ${named} do not exist on ${SOURCES} directory" "clean_install"
 	fi
 	
-	# be sure that a PKGBUILD file exit on $sources/$named
-	search_in_dir "${sources}" "${named}" "PKGBUILD"
+	# be sure that a PKGBUILD file exit on $SOURCES/$named
+	search_in_dir "${SOURCES}" "${named}" "PKGBUILD"
 	if (( $? )); then
-		die " Aborting : a PKGBUILD file must at least exist into ${sources} directory"
+		die " Aborting : a PKGBUILD file must at least exist into ${SOURCES} directory" "clean_install"
 	fi
+	
 	# retrieve pkgver and pkgrel to implemente them onto the name
-	pkgver_=$(grep pkgver= "${sources}/${named}/PKGBUILD" | awk -F"=" '{print $2}')
-	pkgrel_=$(grep pkgrel= "${sources}/${named}/PKGBUILD" | awk -F"=" '{print $2}')
-	named_version="${pkgver_}-${pkgrel_}"
+	# sanitize the pkgver pkgrel first
+	unset pkgver pkgrel
+	
+	source "${SOURCES}/${named}/PKGBUILD"
+	
+	_pkgver="$pkgver"
+	_pkgrel="$pkgrel"
+	named_version="${_pkgver}-${_pkgrel}"
 	
 	# be sure that the named container doesn't exist
 	lxc-ls | grep "${named}-${named_version}" &>/dev/null
@@ -189,40 +196,39 @@ build(){
 	# create the container
 	create "${named}-${named_version}" "${_args[@]}"
 	
-	# copy $sources/$named files onto the container
-	#mkdir -p "${target}/${named}-${named_version}/${workdir}/rootfs/tmp/${named}-${named_version}" || die " Impossible to create ${target}/${named}/${workdir}/rootfs/tmp/${named}-${named_version}"
-	cp -ra "${sources}/${named}" "${target}/${named}-${named_version}/${workdir}/rootfs/tmp/${named}-${named_version}" || die " Impossible to copy file from ${sources}/${named}-${named_version}"
+	# copy $SOURCES/$named files onto the container
+	cp -ra "${SOURCES}/${named}" "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/tmp/${named}-${named_version}" || die " Impossible to copy file from ${SOURCES}/${named}-${named_version}" "clean_install"
 
 
 	# remove existing package and src, pkg directories
-	rm -f "${target}/${named}-${named_version}/${workdir}/rootfs/tmp/${named}"/*.pkg.* &>/dev/null
-	rm -rf "${target}/${named}-${named_version}/${workdir}/rootfs/tmp/${named}"/{src,pkg} &>/dev/null
+	rm -f "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/tmp/${named}"/*.pkg.* &>/dev/null
+	rm -rf "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/tmp/${named}"/{src,pkg} &>/dev/null
 	
 	# start the container
-	lxc_command_parse "start" "${named}-${named_version}" || die " Aborting : impossible to start the container ${named}-${named_version}"
+	lxc_command_parse "start" "${named}-${named_version}" || die " Aborting : impossible to start the container ${named}-${named_version}" "clean_install"
 	
 	# give a good permissions at the tmp/$named onto the container
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${newuser}" -- bash -c 'echo "${newuser}" "ALL=(ALL)" NOPASSWD: ALL >> /etc/sudoers'
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${newuser}" -- bash -c 'chown -R "${newuser}":users /tmp/"${named}"'
+	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'echo "${newuser}" "ALL=(ALL)" NOPASSWD: ALL >> /etc/sudoers'
+	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'chown -R "${newuser}":users /tmp/"${named}"'
 	
 	# build the package
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${newuser}" -- bash -c 'cd /tmp/"${named}"; su "${newuser}"  -c "updpkgsums; makepkg -Cs --noconfirm"'
+	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'cd /tmp/"${named}"; su "${newuser}"  -c "updpkgsums; makepkg -Cs --noconfirm"'
 	
 	# copy the resulting package on the right place
-	check_dir "${result_pkg}/${named}/${named_version}"
+	check_dir "${SAVE_PKG}/${named}/${named_version}"
 	if (( $? )); then
-		mkdir -p "${result_pkg}/${named}/${named_version}"
+		mkdir -p "${SAVE_PKG}/${named}/${named_version}"
 	fi
-	cp -f "${target}/${named}-${named_version}/${workdir}/rootfs/tmp/${named}-${named_version}"/*.pkg.tar.* "${result_pkg}/${named}/${named_version}" || echo_info " WARNING : the resulting package can be copied to ${result_pkg}/${named}/${named_version}"
+	cp -f "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/tmp/${named}-${named_version}"/*.pkg.tar.* "${SAVE_PKG}/${named}/${named_version}" || echo_info " WARNING : the resulting package can be copied to ${SAVE_PKG}/${named}/${named_version}"
 	
 	# stop the container
-	lxc_command_parse "stop" "${named}-${named_version}" -k || die " Impossible to stop the container"
+	lxc_command_parse "stop" "${named}-${named_version}" -k || die " Impossible to stop the container" "clean_install"
 	
 	echo_display " Would you like to destroy the container? [y|n]"
 	reply_answer
 	if (( ! $? )); then
 		lxc_command_parse "destroy" "${named}-${named_version}"
-		rm -rf "${target}/${named}-${named_version}"
+		rm -rf "${TARGET}/${named}-${named_version}"
 	fi
 }
 
@@ -237,25 +243,19 @@ remake(){
 ################################################################################################################
 
 # ${1} command to check
+# return 0 on success,1 for fail
 check_lxc_command(){
 	local loop_ command ret
 	command="${1}"
 
 	for loop_ in $(ls /bin/|grep lxc-|sed 's:*::'); do
 		if [[ lxc-"${command}" == "${loop_}" ]]; then
-			ret=0
-			break
-		else
-			ret=1
+			return 0
 		fi
 	done
-	# ret=1 else return 1
-	if [[ "${ret}" == 1 ]]; then
-		return 1
-	else
-		return 0
-	fi
 	
+	return 1
+		
 	unset ret loop_ command
 }
 
@@ -454,28 +454,28 @@ manage_network_help(){
 }
 
 network_destroy(){
-	ip link set "${host_interface}" nomaster
-	ip link set "${bridge_interface}" down
-	ip link delete "${bridge_interface}" type bridge
-	ip route add default via "${router_addr}"
+	ip link set "${HOST_INTERFACE}" nomaster
+	ip link set "${BRIDGE_INTERFACE}" down
+	ip link delete "${BRIDGE_INTERFACE}" type bridge
+	ip route add default via "${ROUTER_ADDR}"
 }
 
 network_create(){
 	
 	# check if the bridge exist
 	# if not, create it
-	ip link show type bridge | grep ${bridge_interface} &>/dev/null
+	ip link show type bridge | grep ${BRIDGE_INTERFACE} &>/dev/null
 	if (( $? )); then
-		ip link add name "${bridge_interface}" address 00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//') type bridge
-		ip link set "${bridge_interface}" up
-		ip addr add "${bridge_addr}" dev "${bridge_interface}" 
-		ip link set "${host_interface}" master "${bridge_interface}" 
+		ip link add name "${BRIDGE_INTERFACE}" address 00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//') type bridge
+		ip link set "${BRIDGE_INTERFACE}" up
+		ip addr add "${BRIDGE_ADDR}" dev "${BRIDGE_INTERFACE}" 
+		ip link set "${HOST_INTERFACE}" master "${BRIDGE_INTERFACE}" 
 	fi
-	if ! $(grep -q "POSTROUTING -o ${host_interface} -j" /etc/iptables/iptables.rules 2>/dev/null); then
+	if ! $(grep -q "POSTROUTING -o ${HOST_INTERFACE} -j" /etc/iptables/iptables.rules 2>/dev/null); then
 	
-		iptables -t nat -A POSTROUTING -o "${host_interface}" -j MASQUERADE
+		iptables -t nat -A POSTROUTING -o "${HOST_INTERFACE}" -j MASQUERADE
 	
-		echo_info "-t nat -A POSTROUTING -o "${host_interface}" -j MASQUERADE" 
+		echo_info "-t nat -A POSTROUTING -o "${HOST_INTERFACE}" -j MASQUERADE" 
 		echo_info "was added to your /etc/iptables/iptables.rules"
 	fi
 }
@@ -483,9 +483,9 @@ network_show(){
 	ip link show
 }
 network_start(){
-	ip link set "${host_interface}" master "${bridge_interface}"
+	ip link set "${HOST_INTERFACE}" master "${BRIDGE_INTERFACE}"
 }
 
 network_stop(){
-	ip link set "${host_interface}" nomaster
+	ip link set "${HOST_INTERFACE}" nomaster
 }

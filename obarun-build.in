@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 #
 #
 # Main sript of obarun-build package
@@ -17,25 +17,27 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
 
-
-
-shopt -s extglob
-
 ##		Check is the functions file exits
 
-if [[ -f /usr/lib/obarun/common_functions ]]; then
-	source /usr/lib/obarun/common_functions
-else
-	echo "==>> Missing file : common_functions"
-	exit	
-fi
+sourcing(){
+	
+	local list
+	
+	for list in /usr/lib/obarun/{common_functions,build_functions} /etc/obarun/build.conf; do
+		if [[ -f "${list}" ]]; then
+			source "${list}"
+		else
+			echo_error " Missing file : ${list}"
+			exit	
+		fi
+	done
+	
+	unset list
+}
+sourcing
 
-if [[ -f /usr/lib/obarun/build_functions ]]; then
-	source /usr/lib/obarun/build_functions
-else
-	echo "==>> Missing file : build_functions"
-	exit	
-fi
+shellopts_save
+shellopts_set_unset "extglob" 0
 
 ##		Clean before exit
 
@@ -55,7 +57,7 @@ main_update(){
 	reply_answer
 
 	if (( ! $? )); then
-		pac_update "obarun-build" "/var/lib/obarun/obarun-build" "$git_addr" || die " Impossible to update" "clean_install"
+		pac_update "obarun-build" "/var/lib/obarun/obarun-build" "$GIT_ADDR" || die " Impossible to update" "clean_install"
 		source /usr/lib/obarun/build_functions
 	else
 		echo_retry " Some functionalities will cannot working properly without updating"
@@ -64,7 +66,7 @@ main_update(){
 	fi
 }
 
-if [[ "$update" == "yes" ]]; then
+if [[ "$UPDATE" == "yes" ]]; then
 	main_update
 fi
 
