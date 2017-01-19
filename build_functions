@@ -19,14 +19,14 @@
 TEMPLATES="${TEMPLATES:-/usr/share/obarun/obarun-build/templates}"
 WORKDIR="container"
 WORKCONF="config"
+LXC_CONF="/var/lib/lxc/"
 
 clean_install(){
 	
 	echo_display " Cleaning up"
 	
-	if [[ -d "${TARGET}/${named}/${WORKCONF}" ]]; then
-		echo_valid " Removing ${TARGET}/${named}/${WORKCONF}"
-		rm -rf "${TARGET}/${named}/"
+	if [[ -d "${TARGET}/${named}/" ]]; then
+		delete_container "${TARGET}" "${named}"
 	fi
 	
 	echo_valid " Restore your shell options"
@@ -121,24 +121,20 @@ create(){
 		reply_answer
 		if (( $? )); then
 			die " Exiting"
+		else
+			delete_container "${TARGET}" "${named}"
 		fi
 	fi
-	# check if templates directory exist on $TARGET
-	# create it if doesn't exist
-	check_dir "${TARGET}/${named}/${WORKCONF}"
-	if (( $? )); then
-		echo_display " Create ${TARGET}/${named}/${WORKCONF}"
-		mkdir -p "${TARGET}/${named}/${WORKCONF}" || die " Impossible to create directory ${TARGET}/${named}/${WORKCONF}" "clean_install"
-	fi
-	# check if configuration templates exist
-	# if not create it
+	
+	# create the templates directory on $TARGET
+	echo_display " Create ${TARGET}/${named}/${WORKCONF}"
+	mkdir -p "${TARGET}/${named}/${WORKCONF}" || die " Impossible to create directory ${TARGET}/${named}/${WORKCONF}" "clean_install"
+	
+	# copy configuration file to $TARGET
 	for file in "${file_list[@]}"; do
 		file=${file##*/}
-		search_in_dir "${TARGET}/${named}" "${WORKCONF}" "${file}"
-		if (( $? )); then
-			echo_display " Copy ${file} templates file to ${TARGET}/${named}/${WORKCONF}"
-			cp "${TEMPLATES}/${file}" "${TARGET}/${named}/${WORKCONF}" || die " Impossible to copy ${file}" "clean_install"
-		fi
+		echo_display " Copy ${file} templates file to ${TARGET}/${named}/${WORKCONF}"
+		cp "${TEMPLATES}/${file}" "${TARGET}/${named}/${WORKCONF}" || die " Impossible to copy ${file}" "clean_install"
 	done
 	
 	# now we have to correct place to find configuration file to create and configure the container
@@ -147,6 +143,13 @@ create(){
 	export named="${named}"
 	export WORKDIR="${WORKDIR}"
 	export WORKCONF="${WORKCONF}"
+	check_var(){
+		echo create_conf :: "${create_conf}"
+		echo named :: "${named}"
+		echo WORKDIR :: "${WORKDIR}"
+		echo WORKCONF :: "${WORKCONF}"
+	}
+	#check_var
 	lxc_command_parse "create" "${named}" -t "${TARGET}/${named}/${WORKCONF}/create" "${_args[@]}" || die " Impossible to create the container" "clean_install"
 	
 }
@@ -212,7 +215,7 @@ build(){
 	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'chown -R "${newuser}":users /tmp/"${named}"'
 	
 	# build the package
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'cd /tmp/"${named}"; su "${newuser}"  -c "updpkgsums; makepkg -Cs --noconfirm"'
+	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'cd /tmp/"${named}"; su "${newuser}"  -c "updpkgsums; makepkg -Cs --noconfirm"' || die " Something wrong happen at building the package"
 	
 	# copy the resulting package on the right place
 	check_dir "${SAVE_PKG}/${named}/${named_version}"
@@ -227,8 +230,7 @@ build(){
 	echo_display " Would you like to destroy the container? [y|n]"
 	reply_answer
 	if (( ! $? )); then
-		lxc_command_parse "destroy" "${named}-${named_version}"
-		rm -rf "${TARGET}/${named}-${named_version}"
+		lxc_command_parse "destroy" "${named}-${named_version}" && rm -rf "${TARGET}/${named}-${named_version}"
 	fi
 }
 
@@ -257,6 +259,23 @@ check_lxc_command(){
 	return 1
 		
 	unset ret loop_ command
+}
+
+# ${1} path to the container
+# ${2} name of the container
+delete_container(){
+	local _named _path
+	
+	_path="${1}"
+	_named="${2}"
+	
+	rm -rf "${_path}/${_named}" || die " Impossible to remove ${TARGET}/${named}"
+	check_dir "${LXC_CONF}"
+	if (( ! $? )); then
+		rm -rf "${LXC_CONF}/${_named}"
+	fi
+	
+	unset _named _path
 }
 
 # ${1} name of the container to manage.
