@@ -46,9 +46,10 @@ clean_install() {
     
     echo_display " Cleaning up"
     
+    mount_umount "${TARGET}/${named}" "umount"
+    
     echo_valid " Destroying $named"
-    lxc-destroy -n "${named}"
-    rm -rf "${CONT_PATH}"
+	delete_container "${TARGET}" "${named}"
     
     echo_valid " Destroying network"
     network_destroy
@@ -86,7 +87,7 @@ sanitize(){
 	if [ -d "${CONT_PATH}" ]; then
 		rm -rf "${CONT_PATH}"
 	fi
-	#if [ -d "${CONT_CONF}" ]; then
+	#if [ -d "${LXC_CONF}" ]; then
 	#	lxc-destroy -n "${named}"
     #fi
 }
@@ -124,6 +125,7 @@ pac_file(){
 install_cont() {
 	create_dir
 	pac_file
+	mount_umount "${CONT_ROOTFS}" "mount"
 	
 	# install package
     pacman -r "${CONT_ROOTFS}" -S $(grep -h -v ^# $TARGET/$named/$WORKCONF/pkglist_*) --noconfirm --config "${PAC_CONF}" --gpgdir "${GPG_DIR}" || die " Impossible to install packages"
@@ -140,6 +142,9 @@ install_cont() {
 customize_cont() {
 	
 	mkdir -p "${CONT_ROOTFS}""${SOURCES_FUNC}"
+	
+	echo_display " Copying common_functions"
+	cp -f "/usr/lib/obarun/common_functions" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy file customizeCont" 
 			
 	echo_display " Copying customize"
 	cp -f "${TARGET}/${named}/${WORKCONF}/customize" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy file customizeCont" 
@@ -199,8 +204,7 @@ conf_console(){
 # Write container configuration files
 cont_conf() {
 	
-    mkdir -p "${CONT_CONF}" || die " Impossible to make directory ${_cont_conf}"
-    local config="${CONT_CONF}/config" LXC_NETWORK_HWADDR=00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//')
+	local config="${LXC_CONF}/${named}/config" LXC_NETWORK_HWADDR=00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//')
    
     rm -f ${config}
    
@@ -224,10 +228,6 @@ cont_conf() {
 	
 }
 
-#(( EUID == 0 )) || die " ${bred}You must be run this script with root privileges"
-
-#sanitize
-
 if (( ${CREATE_BRIDGE} ));then
 	network_create
 fi
@@ -240,5 +240,7 @@ customize_cont
 
 cont_conf
 
-echo_valid " The configuration file is stored in ${START_CONF}."
+mount_umount "${TARGET}/${named}" "umount"
+
+echo_valid " The configuration file is stored at ${TARGET}/${named}/${WORKCONF}."
 
