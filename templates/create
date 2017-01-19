@@ -240,7 +240,7 @@ customize_cont
 
 cont_conf
 
-mount_umount "${TARGET}/${named}" "umount"
+mount_umount "${CONT_ROOTFS}" "umount"
 
 echo_valid " The configuration file is stored at ${TARGET}/${named}/${WORKCONF}."
 
