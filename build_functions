@@ -215,14 +215,14 @@ build(){
 	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'chown -R "${newuser}":users /tmp/"${named}"'
 	
 	# build the package
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'cd /tmp/"${named}"; su "${newuser}"  -c "updpkgsums; makepkg -Cs --noconfirm"' || die " Something wrong happen at building the package"
+	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'cd /tmp/"${named}"; su "${newuser}"  -c "updpkgsums; makepkg -Cs --noconfirm"' || die " Something wrong happen at building the package" "clean_install"
 	
 	# copy the resulting package on the right place
 	check_dir "${SAVE_PKG}/${named}/${named_version}"
 	if (( $? )); then
 		mkdir -p "${SAVE_PKG}/${named}/${named_version}"
 	fi
-	cp -f "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/tmp/${named}-${named_version}"/*.pkg.tar.* "${SAVE_PKG}/${named}/${named_version}" || echo_info " WARNING : the resulting package can be copied to ${SAVE_PKG}/${named}/${named_version}"
+	cp -f "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/tmp/${named}-${named_version}"/*.pkg.tar.* "${SAVE_PKG}/${named}/${named_version}" || echo_info " WARNING : the resulting package can be copied to ${SAVE_PKG}/${named}/${named_version}" "clean_install"
 	
 	# stop the container
 	lxc_command_parse "stop" "${named}-${named_version}" -k || die " Impossible to stop the container" "clean_install"
@@ -303,9 +303,12 @@ manage(){
 	
 	if [[ -z "${named}" ]]; then
 		echo_info " name must not be empty"
-		echo_info " please pick one on the following list"
-		
-		check_existing_container
+		if [[ -n "${container_list[@]}" ]]; then
+			echo_info " please pick one on the following list"
+			check_existing_container
+		else
+			die
+		fi
 	else
 		for container_exist in "${container_list[@]}"; do
 			if [[ "${named}" == "${container_exist}" ]]; then
