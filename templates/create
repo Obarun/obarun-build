@@ -40,24 +40,18 @@ source "${create_conf}"
 shellopts_save
 shellopts_set_unset "extglob" 0
 
-trap "clean_install"  TERM HUP QUIT INT ERR KILL STOP 
+trap "sanitize"  TERM HUP QUIT INT ERR KILL STOP 
 
-clean_install() {
-    
-    echo_display " Cleaning up"
-    
-    mount_umount "${TARGET}/${named}" "umount"
-    
-    echo_valid " Destroying $named"
-	delete_container "${TARGET}" "${named}"
-    
-    echo_valid " Destroying network"
+sanitize(){
+	
+	kill_process "haveged dirmngr gpg-agent"
+
+	mount_umount "${CONT_ROOTFS}" "umount"
+	
+	echo_valid " Destroying network"
     network_destroy
-    
-    echo_valid " Restore your shell options"
-    shellopts_restore
-    
-    exit
+
+	clean_install
 }
 
 # Detect use under userns (unsupported)
@@ -83,15 +77,6 @@ if [ -z "$ARCH" ]; then
 	esac
 fi
 
-sanitize(){
-	if [ -d "${CONT_PATH}" ]; then
-		rm -rf "${CONT_PATH}"
-	fi
-	#if [ -d "${LXC_CONF}" ]; then
-	#	lxc-destroy -n "${named}"
-    #fi
-}
-
 create_dir(){
 	
 	echo_notvalid " Create needed directory in ${CONT_ROOTFS}"
@@ -107,14 +92,14 @@ pac_file(){
 	
 	if [[ -d /etc/pacman.d/gnupg && ! -d $CONT_ROOTFS/etc/pacman.d/gnupg ]]; then
 		echo_display " Copying gnupg directory"
-		cp -a /etc/pacman.d/gnupg "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy gnupg directory"
+		cp -a /etc/pacman.d/gnupg "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy gnupg directory" "sanitize"
 	fi
 	
 	echo_display " Copying mirrorlist"
-	cp -af /etc/pacman.d/mirrorlist "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy mirrorlist list"
+	cp -af /etc/pacman.d/mirrorlist "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy mirrorlist list" "sanitize"
 	
 	echo_display " Copying pacman database"
-	cp -f "/var/lib/pacman/sync/"*.* "${CONT_ROOTFS}/var/lib/pacman/sync/" || die " Impossible to copy pacman database"
+	cp -f "/var/lib/pacman/sync/"*.* "${CONT_ROOTFS}/var/lib/pacman/sync/" || die " Impossible to copy pacman database" "sanitize"
 	
 	return 0 
 }
@@ -128,12 +113,12 @@ install_cont() {
 	mount_umount "${CONT_ROOTFS}" "mount"
 	
 	# install package
-    pacman -r "${CONT_ROOTFS}" -S $(grep -h -v ^# $TARGET/$named/$WORKCONF/pkglist_*) --noconfirm --config "${PAC_CONF}" --gpgdir "${GPG_DIR}" || die " Impossible to install packages"
+    pacman -r "${CONT_ROOTFS}" -S $(grep -h -v ^# $TARGET/$named/$WORKCONF/pkglist_*) --noconfirm --config "${PAC_CONF}" --gpgdir "${GPG_DIR}" || die " Impossible to install packages" "sanitize"
 	
 	# pacman installation push mirrorlist to .pacsave,
 	# so copy again to erase the change
 	echo_display " Copying mirrorlist"
-	cp -af /etc/pacman.d/mirrorlist "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy mirrorlist list"
+	cp -af /etc/pacman.d/mirrorlist "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy mirrorlist list" "sanitize"
 	
     return 0
 }
@@ -144,30 +129,30 @@ customize_cont() {
 	mkdir -p "${CONT_ROOTFS}""${SOURCES_FUNC}"
 	
 	echo_display " Copying common_functions"
-	cp -f "/usr/lib/obarun/common_functions" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy file customizeCont" 
+	cp -f "/usr/lib/obarun/common_functions" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy file customizeCont" "sanitize"
 			
 	echo_display " Copying customize"
-	cp -f "${TARGET}/${named}/${WORKCONF}/customize" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy file customizeCont" 
+	cp -f "${TARGET}/${named}/${WORKCONF}/customize" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy file customizeCont" "sanitize"
 	
 	echo_display " Copying build.conf"
-	cp -f "/etc/obarun/build.conf" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy build.conf"
+	cp -f "/etc/obarun/build.conf" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy build.conf" "sanitize"
 	
 	echo_display " Copying create.conf"
-	cp -f "${TARGET}/${named}/${WORKCONF}/create.conf" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy cont_create.conf"
+	cp -f "${TARGET}/${named}/${WORKCONF}/create.conf" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy cont_create.conf" "sanitize"
 	
 	echo_display " Copying locale file at ${CONT_ROOTFS}/etc/"  
-    cp -fp /etc/locale.conf /etc/locale.gen "${CONT_ROOTFS}/etc/" || die " Impossible to copy locale file"
+    cp -fp /etc/locale.conf /etc/locale.gen "${CONT_ROOTFS}/etc/" || die " Impossible to copy locale file" "sanitize"
 	
 	echo_display " Copy resolv.conf in ${CONT_ROOTFS}"
-	cp -f /etc/resolv.conf "${CONT_ROOTFS}/etc/resolv.conf" || die " Impossible to copy the file resolv.conf"
+	cp -f /etc/resolv.conf "${CONT_ROOTFS}/etc/resolv.conf" || die " Impossible to copy the file resolv.conf" "sanitize"
 	
 	echo_display " Copy pacman.conf in ${CONT_ROOTFS}"
-	cp -f "${PAC_CONF}" "${CONT_ROOTFS}"/etc || die " Impossible to copy the file ${PAC_CONF}"
+	cp -f "${PAC_CONF}" "${CONT_ROOTFS}"/etc || die " Impossible to copy the file ${PAC_CONF}" "sanitize"
 	
 	echo_display " Copy makepkg.conf in ${CONT_ROOTFS}"
-	cp -f "${MAKEPKG_CONF}" "${CONT_ROOTFS}"/etc || die " Impossible to copy the file ${MAKEPKG_CONF}"
+	cp -f "${MAKEPKG_CONF}" "${CONT_ROOTFS}"/etc || die " Impossible to copy the file ${MAKEPKG_CONF}" "sanitize"
 	
-	chroot "${CONT_ROOTFS}" "${SOURCES_FUNC}"/customize || die " Failed to enter on ${CONT_ROOTFS} or Failed to execute the script customizeCont"
+	chroot "${CONT_ROOTFS}" "${SOURCES_FUNC}"/customize || die " Failed to enter on ${CONT_ROOTFS} or Failed to execute the script customizeCont" "sanitize"
 	
 	conf_console
 	
@@ -184,13 +169,13 @@ conf_console(){
     # bind getty instances to /dev/<devttydir>/tty* if lxc.devttydir is set
     if [[ -n "${devttydir}" ]]; then
 		devtty="${devttydir}-"
-		echo "${devttydir}/console" >> "${CONT_ROOTFS}/etc/securetty" || die " Impossible to set ${devttydir}/console in ${CONT_ROOTFS}/etc/securetty"
+		echo "${devttydir}/console" >> "${CONT_ROOTFS}/etc/securetty" || die " Impossible to set ${devttydir}/console in ${CONT_ROOTFS}/etc/securetty" "sanitize"
 	fi
     
     # update securetty to allow console login if devttydir is set
     if [ -n "${devttydir}" ]; then
         for i in $(seq 1 ${nttys:-1}); do
-            echo "${devttydir}/tty${i}" >> "${CONT_ROOTFS}/etc/securetty" || die " Impossible to set ${devttydir}/tty${i} in ${CONT_ROOTFS}/etc/securetty"
+            echo "${devttydir}/tty${i}" >> "${CONT_ROOTFS}/etc/securetty" || die " Impossible to set ${devttydir}/tty${i} in ${CONT_ROOTFS}/etc/securetty" "sanitize"
         done
     fi
 	
@@ -208,20 +193,20 @@ cont_conf() {
    
     rm -f ${config}
    
-    echo "lxc.utsname = ${named}" >> "${config}" || die " Impossible to config lxc.utsname at ${config}"
-	echo "lxc.arch = ${ARCH}" >> "${config}" || die " Impossible to config lxc.arch at ${config}"
-	echo "lxc.rootfs = ${CONT_ROOTFS}" >> "${config}" || die " Impossible to config lxc.rootfs at ${config}"
+    echo "lxc.utsname = ${named}" >> "${config}" || die " Impossible to config lxc.utsname at ${config}" "sanitize"
+	echo "lxc.arch = ${ARCH}" >> "${config}" || die " Impossible to config lxc.arch at ${config}" "sanitize"
+	echo "lxc.rootfs = ${CONT_ROOTFS}" >> "${config}" || die " Impossible to config lxc.rootfs at ${config}" "sanitize"
     if [ -e "${START_CONF}" ]; then 
-        echo "lxc.include = ${START_CONF}" >> "${config}" || die " Impossible to config lxc.include at ${config}"
+        echo "lxc.include = ${START_CONF}" >> "${config}" || die " Impossible to config lxc.include at ${config}" "sanitize"
     fi
     if (( ${CREATE_BRIDGE} ));then
-		echo "lxc.network.type = ${LXC_NETWORK_TYPE}" >> "${config}" || die " Impossible to config lxc.network.type at ${config}"
-		echo "lxc.network.link = ${LXC_NETWORK_LINK}" >> "${config}" || die " Impossible to config lxc.network.link at ${config}"
-		echo "lxc.network.flags = ${LXC_NETWORK_FLAGS}" >> "${config}" || die " Impossible to config lxc.network.flags at ${config}"
-		echo "lxc.network.ipv4 = ${LXC_NETWORK_IPV4}" >> "${config}" || die " Impossible to config lxc.network.ipv4 at ${config}"
-		echo "lxc.network.ipv4.gateway = ${LXC_NETWORK_IPV4_GATEWAY}" >> "${config}" || die " Impossible to config lxc.network.ipv4.gateway at ${config}"
-		echo "lxc.network.name=${LXC_NETWORK_NAME}" >> "${config}" || die " Impossible to config lxc.network.name at ${config}"
-		echo "lxc.network.hwaddr=${LXC_NETWORK_HWADDR}" >> "${config}" || die " Impossible to config lxc.network.hwaddr at ${config}"
+		echo "lxc.network.type = ${LXC_NETWORK_TYPE}" >> "${config}" || die " Impossible to config lxc.network.type at ${config}" "sanitize"
+		echo "lxc.network.link = ${LXC_NETWORK_LINK}" >> "${config}" || die " Impossible to config lxc.network.link at ${config}" "sanitize"
+		echo "lxc.network.flags = ${LXC_NETWORK_FLAGS}" >> "${config}" || die " Impossible to config lxc.network.flags at ${config}" "sanitize"
+		echo "lxc.network.ipv4 = ${LXC_NETWORK_IPV4}" >> "${config}" || die " Impossible to config lxc.network.ipv4 at ${config}" "sanitize"
+		echo "lxc.network.ipv4.gateway = ${LXC_NETWORK_IPV4_GATEWAY}" >> "${config}" || die " Impossible to config lxc.network.ipv4.gateway at ${config}" "sanitize"
+		echo "lxc.network.name=${LXC_NETWORK_NAME}" >> "${config}" || die " Impossible to config lxc.network.name at ${config}" "sanitize"
+		echo "lxc.network.hwaddr=${LXC_NETWORK_HWADDR}" >> "${config}" || die " Impossible to config lxc.network.hwaddr at ${config}" "sanitize"
     fi
     
 	return 0
@@ -240,7 +225,13 @@ customize_cont
 
 cont_conf
 
+kill_process "haveged dirmngr gpg-agent"
+
 mount_umount "${CONT_ROOTFS}" "umount"
 
 echo_valid " The configuration file is stored at ${TARGET}/${named}/${WORKCONF}."
+
+
+
+
 
