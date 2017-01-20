@@ -31,7 +31,7 @@ package() {
 	install -Dm 0755 "build_functions" "$pkgdir/usr/lib/obarun/build_functions"
 	install -Dm 0644 "build.conf" "$pkgdir/etc/obarun/build.conf"
 	install -dm 0755 "$pkgdir/usr/share/obarun/obarun-build/templates"
-	for file in templates/{create.conf,pkglist_base,start.conf,makepkg.conf,pacman.conf}; do
+	for file in templates/{create.conf,pkglist_*,start.conf,makepkg.conf,pacman.conf}; do
 		install -Dm 0644 "${file}" "$pkgdir/usr/share/obarun/obarun-build/templates"
 	done
 	for file in templates/{create,customize}; do
