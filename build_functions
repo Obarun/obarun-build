@@ -25,7 +25,7 @@ clean_install(){
 	
 	echo_display " Cleaning up"
 	
-	if [[ -d "${TARGET}/${named}/" ]]; then
+	if [[ -d "${TARGET}/${named}" ]]; then
 		delete_container "${TARGET}" "${named}"
 	fi
 	
@@ -162,22 +162,29 @@ build(){
 	named="${1}"
 	_args=( "${@}" )
 	_args=( "${_args[@]:1}" )
-
+	
+	clean_build(){
+		lxc_command_parse "stop" "${named}-${named_version}" -k
+		lxc_command_parse "destroy" "${named}-${named_version}"
+		rm -rf "${TARGET}/${named}-${named_version}"
+		clean_install
+	}
+	
 	# check if sources variables is set
 	if [[ -z "${SOURCES}" ]]; then
-		die " Aborting : sources variables on /etc/obarun/build.conf is not set" "clean_install"
+		die " Aborting : sources variables on /etc/obarun/build.conf is not set" "clean_build"
 	fi
 	
 	# be sure that $named exist on $SOURCES directory
 	check_dir "${SOURCES}/${named}"
 	if (( $? )); then
-		die " ${named} do not exist on ${SOURCES} directory" "clean_install"
+		die " ${named} do not exist on ${SOURCES} directory" "clean_build"
 	fi
 	
 	# be sure that a PKGBUILD file exit on $SOURCES/$named
 	search_in_dir "${SOURCES}" "${named}" "PKGBUILD"
 	if (( $? )); then
-		die " Aborting : a PKGBUILD file must at least exist into ${SOURCES} directory" "clean_install"
+		die " Aborting : a PKGBUILD file must at least exist into ${SOURCES} directory" "clean_build"
 	fi
 	
 	# retrieve pkgver and pkgrel to implemente them onto the name
@@ -200,7 +207,7 @@ build(){
 	create "${named}-${named_version}" "${_args[@]}"
 	
 	# copy $SOURCES/$named files onto the container
-	cp -ra "${SOURCES}/${named}" "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/tmp/${named}-${named_version}" || die " Impossible to copy file from ${SOURCES}/${named}-${named_version}" "clean_install"
+	cp -ra "${SOURCES}/${named}" "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/tmp/${named}-${named_version}" || die " Impossible to copy file from ${SOURCES}/${named}-${named_version}" "clean_build"
 
 
 	# remove existing package and src, pkg directories
@@ -208,14 +215,14 @@ build(){
 	rm -rf "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/tmp/${named}"/{src,pkg} &>/dev/null
 	
 	# start the container
-	lxc_command_parse "start" "${named}-${named_version}" || die " Aborting : impossible to start the container ${named}-${named_version}" "clean_install"
+	lxc_command_parse "start" "${named}-${named_version}" || die " Aborting : impossible to start the container ${named}-${named_version}" "clean_build"
 	
 	# give a good permissions at the tmp/$named onto the container
 	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'echo "${newuser}" "ALL=(ALL)" NOPASSWD: ALL >> /etc/sudoers'
 	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'chown -R "${newuser}":users /tmp/"${named}"'
 	
 	# build the package
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'cd /tmp/"${named}"; su "${newuser}"  -c "updpkgsums; makepkg -Cs --noconfirm"' || die " Something wrong happen at building the package" "clean_install"
+	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'cd /tmp/"${named}"; su "${newuser}"  -c "updpkgsums; makepkg -Cs --noconfirm"' || die " Something wrong happen at building the package" "clean_build"
 	
 	# copy the resulting package on the right place
 	check_dir "${SAVE_PKG}/${named}/${named_version}"
@@ -225,7 +232,7 @@ build(){
 	cp -f "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/tmp/${named}-${named_version}"/*.pkg.tar.* "${SAVE_PKG}/${named}/${named_version}" || echo_info " WARNING : the resulting package can be copied to ${SAVE_PKG}/${named}/${named_version}" "clean_install"
 	
 	# stop the container
-	lxc_command_parse "stop" "${named}-${named_version}" -k || die " Impossible to stop the container" "clean_install"
+	lxc_command_parse "stop" "${named}-${named_version}" -k || die " Impossible to stop the container" "clean_build"
 	
 	echo_display " Would you like to destroy the container? [y|n]"
 	reply_answer
@@ -264,15 +271,19 @@ check_lxc_command(){
 # ${1} path to the container
 # ${2} name of the container
 delete_container(){
-	local _named _path
+	local _named _path stats
 	
 	_path="${1}"
 	_named="${2}"
 	
 	rm -rf "${_path}/${_named}" || die " Impossible to remove ${TARGET}/${named}"
-	check_dir "${LXC_CONF}"
+	check_dir "${LXC_CONF}/${_named}"
 	if (( ! $? )); then
-		rm -rf "${LXC_CONF}/${_named}"
+		stats=$(lxc_command_parse "info" "${_named}" "-s" | grep "RUNNING")
+		if (( ! $? ));then
+			lxc_command_parse "stop" "${_named}" "-k"
+		fi
+		lxc_command_parse "destroy" "${_named}"
 	fi
 	
 	unset _named _path
