@@ -25,8 +25,10 @@ clean_install(){
 	
 	echo_display " Cleaning up"
 	
-	if [[ -d "${TARGET}/${named}" ]]; then
-		delete_container "${TARGET}" "${named}"
+	if [[ -n "${named}" ]]; then
+		if [[ -d "${TARGET}/${named}" ]]; then
+			delete_container "${TARGET}" "${named}"
+		fi
 	fi
 	
 	echo_valid " Restore your shell options"
@@ -276,15 +278,16 @@ delete_container(){
 	_path="${1}"
 	_named="${2}"
 	
-	rm -rf "${_path}/${_named}" || die " Impossible to remove ${TARGET}/${named}"
 	check_dir "${LXC_CONF}/${_named}"
 	if (( ! $? )); then
-		stats=$(lxc_command_parse "info" "${_named}" "-s" | grep "RUNNING")
-		if (( ! $? ));then
+		stat=$(lxc_command_parse "info" "${_named}" "-s" | awk -F':' '{ print $2 }' | sed 's: ::g' )
+		if [[ "${stat}" == "RUNNING" ]];then
 			lxc_command_parse "stop" "${_named}" "-k"
 		fi
 		lxc_command_parse "destroy" "${_named}"
 	fi
+	
+	rm -rf "${_path}/${_named}" || die " Impossible to remove ${TARGET}/${named}"
 	
 	unset _named _path
 }
@@ -296,7 +299,7 @@ manage(){
 	local ans ans_command ans_full parse_ans named _sw sw empty_named pick container_exist ret
 	local -a container_list
 	named="${1}"
-	container_list=( $(lxc-ls -1) )
+	container_list=( $(lxc-ls -1 2>/dev/null) )
 	
 	
 	check_existing_container(){
