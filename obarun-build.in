@@ -43,9 +43,9 @@ shellopts_set_unset "extglob" 0
 
 trap "clean_install" ERR QUIT KILL STOP INT TERM 
 
-##		Must be run without root privilegies 
+##		Must be run with root privilegies 
 
-(( EUID == 0 )) || die " ${bred}You must be run this script with root privilegies" "clean_install"
+(( EUID == 0 )) || die " ${bred}You must be run this script with root privilegies"
 
 ##		Let's go
 
