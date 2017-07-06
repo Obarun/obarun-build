@@ -507,7 +507,11 @@ network_create(){
 		ip link add name "${BRIDGE_INTERFACE}" address 00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//') type bridge
 		ip link set "${BRIDGE_INTERFACE}" up
 		ip addr add "${BRIDGE_ADDR}" dev "${BRIDGE_INTERFACE}" 
-		ip link set "${HOST_INTERFACE}" master "${BRIDGE_INTERFACE}" 
+		ip link set "${HOST_INTERFACE}" master "${BRIDGE_INTERFACE}"
+		# assigning the host interface to the bridge cause a losing connection on the host
+		# so disable it and reassigne it solve this issue
+		ip link set "${HOST_INTERFACE}" nomaster "${BRIDGE_INTERFACE}"
+		ip link set "${HOST_INTERFACE}" master "${BRIDGE_INTERFACE}"
 	fi
 	if [[ -f /etc/iptables/iptables.rules ]];then
 		if ! $(grep -q "POSTROUTING -o ${HOST_INTERFACE} -j" /etc/iptables/iptables.rules 2>/dev/null); then
