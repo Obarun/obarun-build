@@ -23,7 +23,7 @@ sourcing(){
 	
 	local list
 	
-	for list in /usr/lib/obarun/{common_functions,build_functions} /etc/obarun/build.conf; do
+	for list in /etc/obarun/build.conf /usr/lib/obarun/{common_functions,build_functions}; do
 		if [[ -f "${list}" ]]; then
 			source "${list}"
 		else
@@ -58,7 +58,7 @@ main_update(){
 
 	if (( ! $? )); then
 		pac_update "obarun-build" "/var/lib/obarun/obarun-build" "$GIT_ADDR" || die " Impossible to update" "clean_install"
-		source /usr/lib/obarun/build_functions
+		sourcing
 	else
 		echo_retry " Some functionalities will cannot working properly without updating"
 		echo_info " Press enter to continue"
