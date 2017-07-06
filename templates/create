@@ -22,7 +22,7 @@ sourcing(){
 	
 	local list
 	
-	for list in /usr/lib/obarun/{common_functions,build_functions} /etc/obarun/build.conf; do
+	for list in /etc/obarun/build.conf /usr/lib/obarun/{common_functions,build_functions}; do
 		if [[ -f "${list}" ]]; then
 			source "${list}"
 		else
