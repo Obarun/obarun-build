@@ -507,12 +507,14 @@ network_create(){
 		ip addr add "${BRIDGE_ADDR}" dev "${BRIDGE_INTERFACE}" 
 		ip link set "${HOST_INTERFACE}" master "${BRIDGE_INTERFACE}" 
 	fi
-	if ! $(grep -q "POSTROUTING -o ${HOST_INTERFACE} -j" /etc/iptables/iptables.rules 2>/dev/null); then
-	
-		iptables -t nat -A POSTROUTING -o "${HOST_INTERFACE}" -j MASQUERADE
-	
-		echo_info "-t nat -A POSTROUTING -o "${HOST_INTERFACE}" -j MASQUERADE" 
-		echo_info "was added to your /etc/iptables/iptables.rules"
+	if [[ -f /etc/iptables/iptables.rules ]];then
+		if ! $(grep -q "POSTROUTING -o ${HOST_INTERFACE} -j" /etc/iptables/iptables.rules 2>/dev/null); then
+		
+			iptables -t nat -A POSTROUTING -o "${HOST_INTERFACE}" -j MASQUERADE
+		
+			echo_info "-t nat -A POSTROUTING -o "${HOST_INTERFACE}" -j MASQUERADE" 
+			echo_info "was added to your /etc/iptables/iptables.rules"
+		fi
 	fi
 }
 network_show(){
