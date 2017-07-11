@@ -20,6 +20,7 @@ TEMPLATES="${TEMPLATES:-/usr/share/obarun/obarun-build/templates}"
 WORKDIR="container"
 WORKCONF="config"
 LXC_CONF="/var/lib/lxc/"
+BUILD_DEST_FILES="/home/${NEWUSER}/tmp"
 
 clean_install(){
 	
@@ -27,7 +28,11 @@ clean_install(){
 	
 	if [[ -n "${named}" ]]; then
 		if [[ -d "${TARGET}/${named}" ]]; then
-			delete_container "${TARGET}" "${named}"
+			echo_display " Would you like to destroy the container? [y|n]"
+			reply_answer
+			if (( ! $? )); then
+				delete_container "${TARGET}" "${named}"
+			fi
 		fi
 	fi
 	
@@ -167,9 +172,14 @@ build(){
 	
 	clean_build(){
 		lxc_command_parse "stop" "${named}-${named_version}" -k
-		lxc_command_parse "destroy" "${named}-${named_version}"
-		rm -rf "${TARGET}/${named}-${named_version}"
-		clean_install
+		echo_display " Would you like to destroy the container? [y|n]"
+		reply_answer
+		if (( ! $? )); then
+			lxc_command_parse "destroy" "${named}-${named_version}"
+			rm -rf "${TARGET}/${named}-${named_version}"
+		fi
+		echo_valid " Restore your shell options"
+		shellopts_restore
 	}
 	
 	# check if sources variables is set
@@ -209,29 +219,30 @@ build(){
 	create "${named}-${named_version}" "${_args[@]}"
 	
 	# copy $SOURCES/$named files onto the container
-	cp -ra "${SOURCES}/${named}" "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/tmp/${named}-${named_version}" || die " Impossible to copy file from ${SOURCES}/${named}-${named_version}" "clean_build"
+	mkdir -p -m1777 "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/${BUILD_DEST_FILES}"
+	cp -ra "${SOURCES}/${named}" "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/${BUILD_DEST_FILES}/${named}-${named_version}" || die " Impossible to copy file from ${SOURCES}/${named}-${named_version}" "clean_build"
 
 
 	# remove existing package and src, pkg directories
-	rm -f "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/tmp/${named}"/*.pkg.* &>/dev/null
-	rm -rf "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/tmp/${named}"/{src,pkg} &>/dev/null
+	rm -f "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/${BUILD_DEST_FILES}/${named}"/*.pkg.* &>/dev/null
+	rm -rf "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/${BUILD_DEST_FILES}/${named}"/{src,pkg} &>/dev/null
 	
 	# start the container
 	lxc_command_parse "start" "${named}-${named_version}" || die " Aborting : impossible to start the container ${named}-${named_version}" "clean_build"
 	
 	# give a good permissions at the tmp/$named onto the container
 	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'echo "${newuser}" "ALL=(ALL)" NOPASSWD: ALL >> /etc/sudoers'
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'chown -R "${newuser}":users /tmp/"${named}"'
+	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" -- bash -c 'chown -R "${newuser}":users "${build_dest_files}/${named}"'
 	
 	# build the package
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'cd /tmp/"${named}"; su "${newuser}"  -c "updpkgsums; makepkg -Cs --noconfirm"' || die " Something wrong happen at building the package" "clean_build"
+	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" -- bash -c 'trap ERR QUIT KILL STOP INT TERM; cd "${build_dest_files}/${named}"; su "${newuser}"  -c "updpkgsums; makepkg -Cs --noconfirm"' || die " Something wrong happen at building the package" "clean_build"
 	
 	# copy the resulting package on the right place
 	check_dir "${SAVE_PKG}/${named}/${named_version}"
 	if (( $? )); then
 		mkdir -p "${SAVE_PKG}/${named}/${named_version}"
 	fi
-	cp -f "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/tmp/${named}-${named_version}"/*.pkg.tar.* "${SAVE_PKG}/${named}/${named_version}" || echo_info " WARNING : the resulting package can be copied to ${SAVE_PKG}/${named}/${named_version}" "clean_install"
+	cp -f "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/${BUILD_DEST_FILES}/${named}-${named_version}"/*.pkg.tar.* "${SAVE_PKG}/${named}/${named_version}" || echo_info " WARNING : the resulting package can be copied to ${SAVE_PKG}/${named}/${named_version}" "clean_install"
 	
 	# stop the container
 	lxc_command_parse "stop" "${named}-${named_version}" -k || die " Impossible to stop the container" "clean_build"
