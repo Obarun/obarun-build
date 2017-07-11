@@ -122,10 +122,13 @@ parse_build(){
 	case "${sub_opt}" in
 		b|build)
 		echo 
-			build "${named}" "${rest_opt[@]}"
+			build "${named}" 0 "${rest_opt[@]}"
 			;;
 		r|remake)
-			remake "${named}" "${rest_opt[@]}"
+			remake "${named}" 0 "${rest_opt[@]}"
+			;;
+		s|snap)
+			build "${named}" 1 "${rest_opt[@]}"
 			;;
 		*)
 			usage

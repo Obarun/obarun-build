@@ -63,6 +63,7 @@ ${bold}Sub options :${reset}
         c, create : create a container
     for Build :
         b, build : build a package onto a container
+        s, snap : build a package onto a snapshot container
         r, remake : build a package onto an archived container
     for Manage :
         n, network : manage the bridge
@@ -162,13 +163,18 @@ create(){
 }
 
 # ${1} name of the container
+# ${2} inner variable
 # ${@} arguments to pass. Can be empty
 build(){
 	local named
 	local -a _args
 	named="${1}"
+	snap="${2}" #0 for not
+	target="${TARGET}"
+	workdir="${WORKDIR}/rootfs"
+	
 	_args=( "${@}" )
-	_args=( "${_args[@]:1}" )
+	_args=( "${_args[@]:2}" )
 	
 	clean_build(){
 		lxc_command_parse "stop" "${named}-${named_version}" -k
@@ -176,7 +182,7 @@ build(){
 		reply_answer
 		if (( ! $? )); then
 			lxc_command_parse "destroy" "${named}-${named_version}"
-			rm -rf "${TARGET}/${named}-${named_version}"
+			rm -rf "${target}/${named}-${named_version}"
 		fi
 		echo_valid " Restore your shell options"
 		shellopts_restore
@@ -184,7 +190,7 @@ build(){
 	
 	# check if sources variables is set
 	if [[ -z "${SOURCES}" ]]; then
-		die " Aborting : sources variables on /etc/obarun/build.conf is not set" "clean_build"
+		die " Aborting : SOURCES variables on /etc/obarun/build.conf is not set" "clean_build"
 	fi
 	
 	# be sure that $named exist on $SOURCES directory
@@ -212,37 +218,77 @@ build(){
 	# be sure that the named container doesn't exist
 	lxc-ls | grep "${named}-${named_version}" &>/dev/null
 	if (( ! $? )); then
-		echo_error " Container already exist, please choose another name"
+		die " Container already exist, please choose another name"
 	fi
 	
-	# create the container
-	create "${named}-${named_version}" "${_args[@]}"
-	
-	# copy $SOURCES/$named files onto the container
-	mkdir -p -m1777 "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/${BUILD_DEST_FILES}"
-	cp -ra "${SOURCES}/${named}" "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/${BUILD_DEST_FILES}/${named}-${named_version}" || die " Impossible to copy file from ${SOURCES}/${named}-${named_version}" "clean_build"
+	# snap is used?
+	if (( "${snap}" ));then
+		if [[ -z "${MAIN_SNAP}" ]];then
+			die " The main container in build.conf is not set, please define it" "clean_install"
+		fi
+		#check if main container exist
+		check_dir "${target}/${MAIN_SNAP}"
+		if (( $? )); then
+			die " ${MAIN_SNAP} do not exist, please create it" "clean_build"
+		fi
+		
+		# now we are sure to use snap
+		# change TARGET variable to LXC_CONF and workdir to delta0 directory
+		target="${LXC_CONF}"
+		workdir="delta0"
+		
+		#update the main container
+		echo_display " Would you like upgrade the ${SNAP_CONT} container? [y|n]"
+		reply_answer
+		if (( ! $? )); then
+			lxc_command_parse "start" "${MAIN_SNAP}" || die " Aborting : impossible to start the container ${MAIN_SNAP}" "clean_build"
+			
+			# assigning the host interface to the bridge cause a losing connection on the host
+			# so disable it and reassigne it solve this issue
+			ip link set "${HOST_INTERFACE}" nomaster "${BRIDGE_INTERFACE}"
+			ip link set "${HOST_INTERFACE}" master "${BRIDGE_INTERFACE}"
+			
+			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'pacman -Syu' || echo_info " WARNING : impossible to upgrade ${MAIN_SNAP} container" 
+			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'poweroff'
+			sleep 2 # be sure that the container is stopped, if not lxc-copy fail
+		fi
+		lxc_command_parse "copy" "${MAIN_SNAP}" -N "${named}-${named_version}" -B overlay -s || die " Aborting : impossible to start the container ${named}-${named_version}" "clean_build"
+	else
+		# create the container
+		create "${named}-${named_version}" "${_args[@]}"
+	fi
 
-
-	# remove existing package and src, pkg directories
-	rm -f "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/${BUILD_DEST_FILES}/${named}"/*.pkg.* &>/dev/null
-	rm -rf "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/${BUILD_DEST_FILES}/${named}"/{src,pkg} &>/dev/null
-	
 	# start the container
 	lxc_command_parse "start" "${named}-${named_version}" || die " Aborting : impossible to start the container ${named}-${named_version}" "clean_build"
+			
+	# assigning the host interface to the bridge cause a losing connection on the host
+	# so disable it and reassigne it solve this issue
+	ip link set "${HOST_INTERFACE}" nomaster "${BRIDGE_INTERFACE}"
+	ip link set "${HOST_INTERFACE}" master "${BRIDGE_INTERFACE}"
+		
+	# copy $SOURCES/$named files onto the container
+	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}"\
+		-- bash -c 'su "${newuser}"  -c "mkdir -p ${build_dest_files}"' || die " Impossible to create ${BUILD_DEST_FILES} directory" "clean_build"
 	
+	#mkdir -p -m1777 "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/${BUILD_DEST_FILES}" || die "peut pas copied"
+	cp -ra "${SOURCES}/${named}" "${target}/${named}-${named_version}/${workdir}/${BUILD_DEST_FILES}/${named}-${named_version}" || die " Impossible to copy file from ${SOURCES}/${named}-${named_version}" "clean_build"
+		
 	# give a good permissions at the tmp/$named onto the container
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -- bash -c 'echo "${newuser}" "ALL=(ALL)" NOPASSWD: ALL >> /etc/sudoers'
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" -- bash -c 'chown -R "${newuser}":users "${build_dest_files}/${named}"'
+	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}"\
+		-- bash -c 'echo "${newuser}" "ALL=(ALL)" NOPASSWD: ALL >> /etc/sudoers'
+	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}"\
+		-- bash -c 'chown -R "${newuser}":users "${build_dest_files}/${named}"'
 	
 	# build the package
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" -- bash -c 'trap ERR QUIT KILL STOP INT TERM; cd "${build_dest_files}/${named}"; su "${newuser}"  -c "updpkgsums; makepkg -Cs --noconfirm"' || die " Something wrong happen at building the package" "clean_build"
+	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}"\
+		-- bash -c 'cd "${build_dest_files}/${named}"; su "${newuser}"  -c "updpkgsums; makepkg -Cfs --noconfirm"' || die " Something wrong happen at building the package" "clean_build"
 	
 	# copy the resulting package on the right place
 	check_dir "${SAVE_PKG}/${named}/${named_version}"
 	if (( $? )); then
 		mkdir -p "${SAVE_PKG}/${named}/${named_version}"
 	fi
-	cp -f "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/${BUILD_DEST_FILES}/${named}-${named_version}"/*.pkg.tar.* "${SAVE_PKG}/${named}/${named_version}" || echo_info " WARNING : the resulting package can be copied to ${SAVE_PKG}/${named}/${named_version}" "clean_install"
+	cp -f "${target}/${named}-${named_version}/${workdir}/${BUILD_DEST_FILES}/${named}-${named_version}"/*.pkg.tar.xz "${SAVE_PKG}/${named}/${named_version}" || echo_info " WARNING : the resulting package can be copied to ${SAVE_PKG}/${named}/${named_version}"
 	
 	# stop the container
 	lxc_command_parse "stop" "${named}-${named_version}" -k || die " Impossible to stop the container" "clean_build"
@@ -250,7 +296,7 @@ build(){
 	echo_display " Would you like to destroy the container? [y|n]"
 	reply_answer
 	if (( ! $? )); then
-		lxc_command_parse "destroy" "${named}-${named_version}" && rm -rf "${TARGET}/${named}-${named_version}"
+		lxc_command_parse "destroy" "${named}-${named_version}" && rm -rf "${target}/${named}-${named_version}"
 	fi
 }
 
@@ -519,10 +565,6 @@ network_create(){
 		ip link set "${BRIDGE_INTERFACE}" up
 		ip addr add "${BRIDGE_ADDR}" dev "${BRIDGE_INTERFACE}" 
 		ip link set "${HOST_INTERFACE}" master "${BRIDGE_INTERFACE}"
-		# assigning the host interface to the bridge cause a losing connection on the host
-		# so disable it and reassigne it solve this issue
-		ip link set "${HOST_INTERFACE}" nomaster "${BRIDGE_INTERFACE}"
-		ip link set "${HOST_INTERFACE}" master "${BRIDGE_INTERFACE}"
 	fi
 	if [[ -f /etc/iptables/iptables.rules ]];then
 		if ! $(grep -q "POSTROUTING -o ${HOST_INTERFACE} -j" /etc/iptables/iptables.rules 2>/dev/null); then
@@ -534,6 +576,7 @@ network_create(){
 			echo_info "was added to your /etc/iptables/iptables.rules"
 		fi
 	fi
+	
 }
 network_show(){
 	ip link show
