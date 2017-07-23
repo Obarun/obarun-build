@@ -34,9 +34,9 @@ package() {
 	for file in templates/{create.conf,pkglist_*,start.conf,makepkg.conf,pacman.conf}; do
 		install -Dm 0644 "${file}" "$pkgdir/usr/share/obarun/obarun-build/templates"
 	done
-	for file in templates/{create,customize}; do
-		install -Dm 0755 "${file}" "$pkgdir/usr/share/obarun/obarun-build/templates"
-	done
+	
+	install -Dm 0755 "templates/create" "$pkgdir/usr/share/obarun/obarun-build/templates"
+	
 	install -dm 0755 "$pkgdir/usr/share/licenses/obarun-build/"
 	install -Dm 0644 "LICENSE" "$pkgdir/usr/share/licenses/obarun-build/LICENSE"
 	#install -Dm 0644 "PKGBUILD" "$pkgdir/var/lib/obarun/obarun-build/update_package/PKGBUILD"
