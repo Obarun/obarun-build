@@ -196,6 +196,7 @@ cont_conf() {
     echo "lxc.utsname = ${named}" >> "${config}" || die " Impossible to config lxc.utsname at ${config}" "sanitize"
 	echo "lxc.arch = ${ARCH}" >> "${config}" || die " Impossible to config lxc.arch at ${config}" "sanitize"
 	echo "lxc.rootfs = ${CONT_ROOTFS}" >> "${config}" || die " Impossible to config lxc.rootfs at ${config}" "sanitize"
+    echo "lxc.rootfs.backend = dir" >> "${config}" || die " Impossible to config lxc.rootfs.backend at ${config}" "sanitize"
     if [ -e "${START_CONF}" ]; then 
         echo "lxc.include = ${START_CONF}" >> "${config}" || die " Impossible to config lxc.include at ${config}" "sanitize"
     fi
