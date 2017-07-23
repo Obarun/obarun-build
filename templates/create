@@ -104,8 +104,6 @@ pac_file(){
 	return 0 
 }
 
-
-
 # install packages within container 
 install_cont() {
 	create_dir
@@ -126,20 +124,6 @@ install_cont() {
 # customize container
 customize_cont() {
 	
-	mkdir -p "${CONT_ROOTFS}""${SOURCES_FUNC}"
-	
-	echo_display " Copying common_functions"
-	cp -f "/usr/lib/obarun/common_functions" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy file customizeCont" "sanitize"
-			
-	echo_display " Copying customize"
-	cp -f "${TARGET}/${named}/${WORKCONF}/customize" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy file customizeCont" "sanitize"
-	
-	echo_display " Copying build.conf"
-	cp -f "/etc/obarun/build.conf" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy build.conf" "sanitize"
-	
-	echo_display " Copying create.conf"
-	cp -f "${TARGET}/${named}/${WORKCONF}/create.conf" "${CONT_ROOTFS}""${SOURCES_FUNC}" || die " Impossible to copy cont_create.conf" "sanitize"
-	
 	echo_display " Copying locale file at ${CONT_ROOTFS}/etc/"  
     cp -fp /etc/locale.conf /etc/locale.gen "${CONT_ROOTFS}/etc/" || die " Impossible to copy locale file" "sanitize"
 	
@@ -152,13 +136,101 @@ customize_cont() {
 	echo_display " Copy makepkg.conf in ${CONT_ROOTFS}"
 	cp -f "${MAKEPKG_CONF}" "${CONT_ROOTFS}"/etc || die " Impossible to copy the file ${MAKEPKG_CONF}" "sanitize"
 	
-	chroot "${CONT_ROOTFS}" "${SOURCES_FUNC}"/customize || die " Failed to enter on ${CONT_ROOTFS} or Failed to execute the script customizeCont" "sanitize"
+	config_hostname
 	
-	conf_console
+	config_locale
+	
+	config_localetime
+	
+	config_keymap
+	
+	config_user
+	
+	config_root
+	
+	add_at_logroup
+	
+	config_console
 	
 	return 0
 }
-conf_console(){
+
+config_hostname(){
+	
+	echo_display " Define hostname as : ${HOSTNAME}"
+	if [[ -n "$HOSTNAME" ]]; then
+		sed -i 's/ .*$//' "${CONT_ROOTFS}/etc/hosts" || die " Impossible to define hosts"
+	fi
+
+	sed -i "s/HOSTNAME=.*$/HOSTNAME=$HOSTNAME/g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die " Impossible to define hostname on s6.conf"
+	
+	#echo "$HOSTNAME" > /etc/hostname || die " Impossible to define hostname"
+	sed -i '/127.0.0.1/s/$/ '$HOSTNAME'/' "${CONT_ROOTFS}/etc/hosts" || die " Impossible to define hosts"
+	sed -i '/::1/s/$/ '$HOSTNAME'/' "${CONT_ROOTFS}/etc/hosts" || die " Impossible to define hosts"
+	
+	echo_valid " hostname was configured successfully"
+	
+}
+config_locale(){
+	
+	echo_display " Define locale"
+	chroot "${CONT_ROOTFS}" locale-gen || die " Impossible to launch locale-gen"
+	echo LANG="$LOCALE" > "${CONT_ROOTFS}/etc/locale.conf" || die " Impossible to define locale.conf"
+    echo LC_COLLATE=C >> "${CONT_ROOTFS}/etc/locale.conf" || die " Impossible to define locale.conf"
+	
+	echo_valid " Locale was created successfully"
+	
+}
+config_localetime(){
+	
+	echo_display " Define localtime"
+	if [[ "$SUBZONE" != "" ]]; then
+		chroot "${CONT_ROOTFS}" ln -sf /usr/share/zoneinfo/$ZONE/$SUBZONE /etc/localtime || die " Impossible to define localtime"
+		sed -i "s/TZ=.*$/TZ=$ZONE\/$SUBZONE/g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die " Impossible to define localtime on s6.conf"
+				
+	else
+		chroot "${CONT_ROOTFS}" ln -sf /usr/share/zoneinfo/$ZONE ${CONT_ROOTFS}/etc/localtime || die " Impossible to define localtime"
+		sed -i "s/TZ=.*$/TZ=$ZONE/g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die " Impossible to define localtime on s6.conf"
+	fi
+	
+	echo_valid " Localetime was configured successfully"
+	
+}
+config_keymap(){
+	
+	echo_display " Define keymap" 
+	sed -i "s,KEYMAP=.*$,KEYMAP=${KEYMAP},g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die " Impossible to set ${KEYMAP} on s6.conf"
+		
+	echo_valid " Console keymap was configured successfully"
+	
+}
+config_user(){
+	
+	echo_display " Define ${NEWUSER}"
+	
+	chroot "${CONT_ROOTFS}" useradd -m -g users -G "wheel,disk,storage,optical,floppy,network" -s /bin/bash "${NEWUSER}"
+	
+	echo "${NEWUSER}:${PASSW_USER}" | chroot "${CONT_ROOTFS}" chpasswd || die " Failed to change ${NEWUSER} password"
+	
+	echo_valid " User ${NEWUSER} was created successfully" 
+	
+}
+config_root(){
+	
+	echo_display " Define root"
+
+	echo "root:${PASSW_ROOT}" | chroot "${CONT_ROOTFS}" chpasswd || die " Failed to change root password"
+	
+	echo_valid " root user was configured successfully" 
+	
+}
+add_at_logroup(){
+	
+	echo_display " add ${NEWUSER} at log group"
+	
+	chroot "${CONT_ROOTFS}" gpasswd -a "${NEWUSER}" log || die " Impossible to add user ${NEWUSER} at log group"
+}
+config_console(){
 	
 	# enable getty on active ttys
 	# enable getty on active ttys
@@ -185,9 +257,8 @@ conf_console(){
     
     return 0
 }
-
 # Write container configuration files
-cont_conf() {
+config_container_file() {
 	
 	local config="${LXC_CONF}/${named}/config" LXC_NETWORK_HWADDR=00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//')
    
@@ -224,15 +295,12 @@ install_cont
 
 customize_cont
 
-cont_conf
+config_container_file
 
 kill_process "haveged dirmngr gpg-agent"
 
 mount_umount "${CONT_ROOTFS}" "umount"
 
+shellopts_restore
+
 echo_valid " The configuration file is stored at ${TARGET}/${named}/${WORKCONF}."
-
-
-
-
-
