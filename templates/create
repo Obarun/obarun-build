@@ -16,6 +16,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
 
+
 # functions file for obarun-build package
 
 sourcing(){
@@ -35,24 +36,10 @@ sourcing(){
 }
 sourcing
 
-source "${create_conf}"
+source "${TARGET}/${named}/${WORKCONF}/create.conf" || die " Impossible to source create.conf" 
 
 shellopts_save
 shellopts_set_unset "extglob" 0
-
-trap "sanitize"  TERM HUP QUIT INT ERR KILL STOP 
-
-sanitize(){
-	
-	kill_process "haveged dirmngr gpg-agent"
-
-	mount_umount "${CONT_ROOTFS}" "umount"
-	
-	echo_valid " Destroying network"
-    network_destroy
-
-	clean_install
-}
 
 # Detect use under userns (unsupported)
 for arg in "$@"; do
@@ -92,14 +79,14 @@ pac_file(){
 	
 	if [[ -d /etc/pacman.d/gnupg && ! -d $CONT_ROOTFS/etc/pacman.d/gnupg ]]; then
 		echo_display " Copying gnupg directory"
-		cp -a /etc/pacman.d/gnupg "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy gnupg directory" "sanitize"
+		cp -a /etc/pacman.d/gnupg "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy gnupg directory" 
 	fi
 	
 	echo_display " Copying mirrorlist"
-	cp -af /etc/pacman.d/mirrorlist "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy mirrorlist list" "sanitize"
+	cp -af /etc/pacman.d/mirrorlist "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy mirrorlist list" 
 	
 	echo_display " Copying pacman database"
-	cp -f "/var/lib/pacman/sync/"*.* "${CONT_ROOTFS}/var/lib/pacman/sync/" || die " Impossible to copy pacman database" "sanitize"
+	cp -f "/var/lib/pacman/sync/"*.* "${CONT_ROOTFS}/var/lib/pacman/sync/" || die " Impossible to copy pacman database" 
 	
 	return 0 
 }
@@ -108,15 +95,15 @@ pac_file(){
 install_cont() {
 	create_dir
 	pac_file
-	mount_umount "${CONT_ROOTFS}" "mount"
-	
+	mount_umount "${CONT_ROOTFS}" "mount" || die " Failed to mount ${CONT_ROOTFS}"
+
 	# install package
-    pacman -r "${CONT_ROOTFS}" -S $(grep -h -v ^# $TARGET/$named/$WORKCONF/pkglist_*) --noconfirm --config "${PAC_CONF}" --gpgdir "${GPG_DIR}" || die " Impossible to install packages" "sanitize"
+    pacman -r "${CONT_ROOTFS}" -S $(grep -h -v ^# $TARGET/$named/$WORKCONF/pkglist_*) --noconfirm --config "${PAC_CONF}" --gpgdir "${GPG_DIR}" || die " Impossible to install packages" 
 	
 	# pacman installation push mirrorlist to .pacsave,
 	# so copy again to erase the change
 	echo_display " Copying mirrorlist"
-	cp -af /etc/pacman.d/mirrorlist "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy mirrorlist list" "sanitize"
+	cp -af /etc/pacman.d/mirrorlist "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy mirrorlist list" 
 	
     return 0
 }
@@ -125,16 +112,16 @@ install_cont() {
 customize_cont() {
 	
 	echo_display " Copying locale file at ${CONT_ROOTFS}/etc/"  
-    cp -fp /etc/locale.conf /etc/locale.gen "${CONT_ROOTFS}/etc/" || die " Impossible to copy locale file" "sanitize"
+    cp -fp /etc/locale.conf /etc/locale.gen "${CONT_ROOTFS}/etc/" || die  " Impossible to copy locale file" 
 	
 	echo_display " Copy resolv.conf in ${CONT_ROOTFS}"
-	cp -f /etc/resolv.conf "${CONT_ROOTFS}/etc/resolv.conf" || die " Impossible to copy the file resolv.conf" "sanitize"
+	cp -f /etc/resolv.conf "${CONT_ROOTFS}/etc/resolv.conf" || die  " Impossible to copy the file resolv.conf" 
 	
 	echo_display " Copy pacman.conf in ${CONT_ROOTFS}"
-	cp -f "${PAC_CONF}" "${CONT_ROOTFS}"/etc || die " Impossible to copy the file ${PAC_CONF}" "sanitize"
+	cp -f "${PAC_CONF}" "${CONT_ROOTFS}"/etc || die  " Impossible to copy the file ${PAC_CONF}" 
 	
 	echo_display " Copy makepkg.conf in ${CONT_ROOTFS}"
-	cp -f "${MAKEPKG_CONF}" "${CONT_ROOTFS}"/etc || die " Impossible to copy the file ${MAKEPKG_CONF}" "sanitize"
+	cp -f "${MAKEPKG_CONF}" "${CONT_ROOTFS}"/etc || die  " Impossible to copy the file ${MAKEPKG_CONF}" 
 	
 	config_hostname
 	
@@ -159,14 +146,14 @@ config_hostname(){
 	
 	echo_display " Define hostname as : ${HOSTNAME}"
 	if [[ -n "$HOSTNAME" ]]; then
-		sed -i 's/ .*$//' "${CONT_ROOTFS}/etc/hosts" || die " Impossible to define hosts"
+		sed -i 's/ .*$//' "${CONT_ROOTFS}/etc/hosts" || die  " Impossible to define hosts" 
 	fi
 
-	sed -i "s/HOSTNAME=.*$/HOSTNAME=$HOSTNAME/g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die " Impossible to define hostname on s6.conf"
+	sed -i "s/HOSTNAME=.*$/HOSTNAME=$HOSTNAME/g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die  " Impossible to define hostname on s6.conf" 
 	
 	#echo "$HOSTNAME" > /etc/hostname || die " Impossible to define hostname"
-	sed -i '/127.0.0.1/s/$/ '$HOSTNAME'/' "${CONT_ROOTFS}/etc/hosts" || die " Impossible to define hosts"
-	sed -i '/::1/s/$/ '$HOSTNAME'/' "${CONT_ROOTFS}/etc/hosts" || die " Impossible to define hosts"
+	sed -i '/127.0.0.1/s/$/ '$HOSTNAME'/' "${CONT_ROOTFS}/etc/hosts" || die  " Impossible to define hosts" 
+	sed -i '/::1/s/$/ '$HOSTNAME'/' "${CONT_ROOTFS}/etc/hosts" || die  " Impossible to define hosts" 
 	
 	echo_valid " hostname was configured successfully"
 	
@@ -174,9 +161,9 @@ config_hostname(){
 config_locale(){
 	
 	echo_display " Define locale"
-	chroot "${CONT_ROOTFS}" locale-gen || die " Impossible to launch locale-gen"
-	echo LANG="$LOCALE" > "${CONT_ROOTFS}/etc/locale.conf" || die " Impossible to define locale.conf"
-    echo LC_COLLATE=C >> "${CONT_ROOTFS}/etc/locale.conf" || die " Impossible to define locale.conf"
+	chroot "${CONT_ROOTFS}" locale-gen || die  " Impossible to launch locale-gen" 
+	echo LANG="$LOCALE" > "${CONT_ROOTFS}/etc/locale.conf" || die  " Impossible to define locale.conf" 
+    echo LC_COLLATE=C >> "${CONT_ROOTFS}/etc/locale.conf" || die  " Impossible to define locale.conf" 
 	
 	echo_valid " Locale was created successfully"
 	
@@ -185,12 +172,12 @@ config_localetime(){
 	
 	echo_display " Define localtime"
 	if [[ "$SUBZONE" != "" ]]; then
-		chroot "${CONT_ROOTFS}" ln -sf /usr/share/zoneinfo/$ZONE/$SUBZONE /etc/localtime || die " Impossible to define localtime"
-		sed -i "s/TZ=.*$/TZ=$ZONE\/$SUBZONE/g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die " Impossible to define localtime on s6.conf"
+		chroot "${CONT_ROOTFS}" ln -sf /usr/share/zoneinfo/$ZONE/$SUBZONE /etc/localtime || die  " Impossible to define localtime" 
+		sed -i "s/TZ=.*$/TZ=$ZONE\/$SUBZONE/g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die  " Impossible to define localtime on s6.conf" 
 				
 	else
-		chroot "${CONT_ROOTFS}" ln -sf /usr/share/zoneinfo/$ZONE ${CONT_ROOTFS}/etc/localtime || die " Impossible to define localtime"
-		sed -i "s/TZ=.*$/TZ=$ZONE/g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die " Impossible to define localtime on s6.conf"
+		chroot "${CONT_ROOTFS}" ln -sf /usr/share/zoneinfo/$ZONE ${CONT_ROOTFS}/etc/localtime || die  " Impossible to define localtime" 
+		sed -i "s/TZ=.*$/TZ=$ZONE/g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die  " Impossible to define localtime on s6.conf" 
 	fi
 	
 	echo_valid " Localetime was configured successfully"
@@ -199,7 +186,7 @@ config_localetime(){
 config_keymap(){
 	
 	echo_display " Define keymap" 
-	sed -i "s,KEYMAP=.*$,KEYMAP=${KEYMAP},g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die " Impossible to set ${KEYMAP} on s6.conf"
+	sed -i "s,KEYMAP=.*$,KEYMAP=${KEYMAP},g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die  " Impossible to set ${KEYMAP} on s6.conf" 
 		
 	echo_valid " Console keymap was configured successfully"
 	
@@ -208,9 +195,9 @@ config_user(){
 	
 	echo_display " Define ${NEWUSER}"
 	
-	chroot "${CONT_ROOTFS}" useradd -m -g users -G "wheel,disk,storage,optical,floppy,network" -s /bin/bash "${NEWUSER}"
+	chroot "${CONT_ROOTFS}" useradd -m -g users -G "wheel,disk,storage,optical,floppy,network" -s /bin/bash "${NEWUSER}" || die  " Failed to create ${NEWUSER}" 
 	
-	echo "${NEWUSER}:${PASSW_USER}" | chroot "${CONT_ROOTFS}" chpasswd || die " Failed to change ${NEWUSER} password"
+	echo "${NEWUSER}:${PASSW_USER}" | chroot "${CONT_ROOTFS}" chpasswd || die  " Failed to change ${NEWUSER} password" 
 	
 	echo_valid " User ${NEWUSER} was created successfully" 
 	
@@ -219,7 +206,7 @@ config_root(){
 	
 	echo_display " Define root"
 
-	echo "root:${PASSW_ROOT}" | chroot "${CONT_ROOTFS}" chpasswd || die " Failed to change root password"
+	echo "root:${PASSW_ROOT}" | chroot "${CONT_ROOTFS}" chpasswd || die  " Failed to change root password" 
 	
 	echo_valid " root user was configured successfully" 
 	
@@ -228,10 +215,10 @@ add_at_logroup(){
 	
 	echo_display " add ${NEWUSER} at log group"
 	
-	chroot "${CONT_ROOTFS}" gpasswd -a "${NEWUSER}" log || die " Impossible to add user ${NEWUSER} at log group"
+	chroot "${CONT_ROOTFS}" gpasswd -a "${NEWUSER}" log || die  " Impossible to add user ${NEWUSER} at log group" 
 }
 config_console(){
-	
+
 	# enable getty on active ttys
 	# enable getty on active ttys
     local nttys=$(grep "^lxc.tty" "${START_CONF}"| head -n1 | cut -d= -f2 | tr -d "[:blank:]")
@@ -241,13 +228,13 @@ config_console(){
     # bind getty instances to /dev/<devttydir>/tty* if lxc.devttydir is set
     if [[ -n "${devttydir}" ]]; then
 		devtty="${devttydir}-"
-		echo "${devttydir}/console" >> "${CONT_ROOTFS}/etc/securetty" || die " Impossible to set ${devttydir}/console in ${CONT_ROOTFS}/etc/securetty" "sanitize"
+		echo "${devttydir}/console" >> "${CONT_ROOTFS}/etc/securetty" || die  " Impossible to set ${devttydir}/console in ${CONT_ROOTFS}/etc/securetty" 
 	fi
     
     # update securetty to allow console login if devttydir is set
     if [ -n "${devttydir}" ]; then
         for i in $(seq 1 ${nttys:-1}); do
-            echo "${devttydir}/tty${i}" >> "${CONT_ROOTFS}/etc/securetty" || die " Impossible to set ${devttydir}/tty${i} in ${CONT_ROOTFS}/etc/securetty" "sanitize"
+            echo "${devttydir}/tty${i}" >> "${CONT_ROOTFS}/etc/securetty" || die  " Impossible to set ${devttydir}/tty${i} in ${CONT_ROOTFS}/etc/securetty" 
         done
     fi
 	
@@ -259,26 +246,26 @@ config_console(){
 }
 # Write container configuration files
 config_container_file() {
-	
+
 	local config="${LXC_CONF}/${named}/config" LXC_NETWORK_HWADDR=00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//')
    
     rm -f ${config}
    
-    echo "lxc.utsname = ${named}" >> "${config}" || die " Impossible to config lxc.utsname at ${config}" "sanitize"
-	echo "lxc.arch = ${ARCH}" >> "${config}" || die " Impossible to config lxc.arch at ${config}" "sanitize"
-	echo "lxc.rootfs = ${CONT_ROOTFS}" >> "${config}" || die " Impossible to config lxc.rootfs at ${config}" "sanitize"
-    echo "lxc.rootfs.backend = dir" >> "${config}" || die " Impossible to config lxc.rootfs.backend at ${config}" "sanitize"
+    echo "lxc.utsname = ${named}" >> "${config}" || die  " Impossible to config lxc.utsname at ${config}" 
+	echo "lxc.arch = ${ARCH}" >> "${config}" || die  " Impossible to config lxc.arch at ${config}" 
+	echo "lxc.rootfs = ${CONT_ROOTFS}" >> "${config}" || die  " Impossible to config lxc.rootfs at ${config}" 
+    echo "lxc.rootfs.backend = dir" >> "${config}" || die  " Impossible to config lxc.rootfs.backend at ${config}" 
     if [ -e "${START_CONF}" ]; then 
-        echo "lxc.include = ${START_CONF}" >> "${config}" || die " Impossible to config lxc.include at ${config}" "sanitize"
+        echo "lxc.include = ${START_CONF}" >> "${config}" || die  " Impossible to config lxc.include at ${config}" 
     fi
     if (( ${CREATE_BRIDGE} ));then
-		echo "lxc.network.type = ${LXC_NETWORK_TYPE}" >> "${config}" || die " Impossible to config lxc.network.type at ${config}" "sanitize"
-		echo "lxc.network.link = ${LXC_NETWORK_LINK}" >> "${config}" || die " Impossible to config lxc.network.link at ${config}" "sanitize"
-		echo "lxc.network.flags = ${LXC_NETWORK_FLAGS}" >> "${config}" || die " Impossible to config lxc.network.flags at ${config}" "sanitize"
-		echo "lxc.network.ipv4 = ${LXC_NETWORK_IPV4}" >> "${config}" || die " Impossible to config lxc.network.ipv4 at ${config}" "sanitize"
-		echo "lxc.network.ipv4.gateway = ${LXC_NETWORK_IPV4_GATEWAY}" >> "${config}" || die " Impossible to config lxc.network.ipv4.gateway at ${config}" "sanitize"
-		echo "lxc.network.name=${LXC_NETWORK_NAME}" >> "${config}" || die " Impossible to config lxc.network.name at ${config}" "sanitize"
-		echo "lxc.network.hwaddr=${LXC_NETWORK_HWADDR}" >> "${config}" || die " Impossible to config lxc.network.hwaddr at ${config}" "sanitize"
+		echo "lxc.network.type = ${LXC_NETWORK_TYPE}" >> "${config}" || die  " Impossible to config lxc.network.type at ${config}" 
+		echo "lxc.network.link = ${LXC_NETWORK_LINK}" >> "${config}" || die  " Impossible to config lxc.network.link at ${config}" 
+		echo "lxc.network.flags = ${LXC_NETWORK_FLAGS}" >> "${config}" || die  " Impossible to config lxc.network.flags at ${config}" 
+		echo "lxc.network.ipv4 = ${LXC_NETWORK_IPV4}" >> "${config}" || die  " Impossible to config lxc.network.ipv4 at ${config}" 
+		echo "lxc.network.ipv4.gateway = ${LXC_NETWORK_IPV4_GATEWAY}" >> "${config}" || die  " Impossible to config lxc.network.ipv4.gateway at ${config}" 
+		echo "lxc.network.name=${LXC_NETWORK_NAME}" >> "${config}" || die  " Impossible to config lxc.network.name at ${config}" 
+		echo "lxc.network.hwaddr=${LXC_NETWORK_HWADDR}" >> "${config}" || die  " Impossible to config lxc.network.hwaddr at ${config}" 
     fi
     
 	return 0
@@ -297,10 +284,6 @@ customize_cont
 
 config_container_file
 
-kill_process "haveged dirmngr gpg-agent"
-
-mount_umount "${CONT_ROOTFS}" "umount"
-
-shellopts_restore
-
 echo_valid " The configuration file is stored at ${TARGET}/${named}/${WORKCONF}."
+
+
