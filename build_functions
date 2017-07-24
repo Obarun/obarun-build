@@ -26,13 +26,23 @@ clean_install(){
 	
 	echo_display " Cleaning up"
 	
+	kill_process "haveged dirmngr gpg-agent"
+	
 	if [[ -n "${named}" ]]; then
 		if [[ -d "${TARGET}/${named}" ]]; then
+			mount_umount "${TARGET}/${named}/${WORKDIR}/rootfs" "umount"
 			echo_display " Would you like to destroy the container? [y|n]"
 			reply_answer
 			if (( ! $? )); then
 				delete_container "${TARGET}" "${named}"
 			fi
+		fi
+	fi
+	if ip link show type bridge | grep ${BRIDGE_INTERFACE} &>/dev/null; then
+		echo_display " Would you like to destroy the bridge interface? [y|n]"
+		reply_answer
+		if (( ! $? )); then
+			network_destroy
 		fi
 	fi
 	
@@ -112,6 +122,7 @@ lxc_command_parse(){
 # ${1} name of the container to create
 # ${@} arguments to pass. Can be empty
 create(){
+
 	local file named
 	local -a file_list _args
 	
@@ -125,7 +136,7 @@ create(){
 	# if yes then exit container exit
 	check_dir "${TARGET}/${named}"
 	if (( ! $? )); then
-		echo_info " Container already exit, do you want overwrite it? [y|n] :"
+		echo_info " Container already exist, do you want overwrite it? [y|n] :"
 		reply_answer
 		if (( $? )); then
 			die " Exiting"
@@ -147,10 +158,8 @@ create(){
 	
 	# now we have to correct place to find configuration file to create and configure the container
 	# so, exporting the good one
-	export create_conf="${TARGET}/${named}/${WORKCONF}/create.conf"
 	export named="${named}"
-	export WORKDIR="${WORKDIR}"
-	export WORKCONF="${WORKCONF}"
+
 	check_var(){
 		echo create_conf :: "${create_conf}"
 		echo named :: "${named}"
@@ -158,7 +167,7 @@ create(){
 		echo WORKCONF :: "${WORKCONF}"
 	}
 	#check_var
-	lxc_command_parse "create" "${named}" -t "${TARGET}/${named}/${WORKCONF}/create" "${_args[@]}" || die " Impossible to create the container" "clean_install"
+	lxc_command_parse "create" "${named}" -t "${TARGET}/${named}/${WORKCONF}/create" "${_args[@]}" || die " Impossible to create the container"
 	
 }
 
