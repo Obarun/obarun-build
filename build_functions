@@ -21,6 +21,7 @@ WORKDIR="container"
 WORKCONF="config"
 LXC_CONF="/var/lib/lxc/"
 BUILD_DEST_FILES="/home/${NEWUSER}/tmp"
+OWNER="$SUDO_USER"
 
 clean_install(){
 	
@@ -298,6 +299,7 @@ build(){
 		mkdir -p "${SAVE_PKG}/${named}/${named_version}"
 	fi
 	cp -f "${target}/${named}-${named_version}/${workdir}/${BUILD_DEST_FILES}/${named}-${named_version}"/*.pkg.tar.xz "${SAVE_PKG}/${named}/${named_version}" || echo_info " WARNING : the resulting package can be copied to ${SAVE_PKG}/${named}/${named_version}"
+	chown -R "${OWNER}":users "${SAVE_PKG}/${named}/${named_version}"
 	
 	# stop the container
 	lxc_command_parse "stop" "${named}-${named_version}" -k || die " Impossible to stop the container" "clean_build"
