@@ -5,7 +5,7 @@
 # Authors:
 # Eric Vidal <eric@obarun.org>
 #
-# Copyright (C) 2016 Eric Vidal <eric@obarun.org>
+# Copyright (C) 2015-2017 Eric Vidal <eric@obarun.org>
 #
 # "THE BEERWARE LICENSE" (Revision 42):
 # <eric@obarun.org> wrote this file.  As long as you retain this notice you
@@ -23,7 +23,7 @@ sourcing(){
 	
 	local list
 	
-	for list in /etc/obarun/build.conf /usr/lib/obarun/{common_functions,build_functions}; do
+	for list in /etc/obarun/build.conf /usr/lib/obarun/{util.sh,build.sh} /usr/lib/obarun/build/*; do
 		if [[ -f "${list}" ]]; then
 			source "${list}"
 		else

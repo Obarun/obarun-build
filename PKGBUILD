@@ -28,9 +28,12 @@ package() {
 	cd "$srcdir/$pkgname"
 	
 	install -Dm 0755 "obarun-build.in" "$pkgdir/usr/bin/obarun-build"
-	install -Dm 0755 "build_functions" "$pkgdir/usr/lib/obarun/build_functions"
+	install -Dm 0755 "build.sh" "$pkgdir/usr/lib/obarun/build.sh"
 	install -Dm 0644 "build.conf" "$pkgdir/etc/obarun/build.conf"
 	install -dm 0755 "$pkgdir/usr/share/obarun/obarun-build/templates"
+	for file in build/*;do
+		install -Dm 0755 "${file}" "$pkgdir/usr/lib/obarun/build/${files}"
+	done
 	for file in templates/{create.conf,pkglist_*,start.conf,makepkg.conf,pacman.conf}; do
 		install -Dm 0644 "${file}" "$pkgdir/usr/share/obarun/obarun-build/templates"
 	done
