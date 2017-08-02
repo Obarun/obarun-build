@@ -15,12 +15,7 @@
 # This script is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
- 
-TEMPLATES="${TEMPLATES:-/usr/share/obarun/obarun-build/templates}"
-WORKDIR="container"
-WORKCONF="config"
-LXC_CONF="/var/lib/lxc/"
-BUILD_DEST_FILES="/home/${NEWUSER}/tmp"
+
 LIBRARY=${LIBRARY:-'/usr/lib/obarun'}
 sourcing(){
 	
@@ -33,6 +28,13 @@ sourcing(){
 	unset list
 }
 sourcing
+
+TEMPLATES="${TEMPLATES:-/usr/share/obarun/obarun-build/templates}"
+WORKDIR="container"
+WORKCONF="config"
+LXC_CONF="/var/lib/lxc/"
+BUILD_DEST_FILES="/home/${NEWUSER}/tmp"
+
 usage(){
 	cat << EOF
 	
