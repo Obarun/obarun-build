@@ -42,8 +42,8 @@ network_create(){
 			iptables -t nat -A POSTROUTING -o "${HOST_INTERFACE}" -j MASQUERADE
 			iptables-save > /etc/iptables/iptables.rules
 			
-			echo_info "-t nat -A POSTROUTING -o "${HOST_INTERFACE}" -j MASQUERADE" 
-			echo_info "was added to your /etc/iptables/iptables.rules"
+			out_info "-t nat -A POSTROUTING -o "${HOST_INTERFACE}" -j MASQUERADE" 
+			out_info "was added to your /etc/iptables/iptables.rules"
 		fi
 	fi
 	

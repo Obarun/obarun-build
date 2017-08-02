@@ -27,7 +27,7 @@ sourcing(){
 		if [[ -f "${list}" ]]; then
 			source "${list}"
 		else
-			echo_error " Missing file : ${list}"
+			out_error "Missing file : ${list}"
 			exit	
 		fi
 	done
@@ -52,7 +52,7 @@ trap "clean_install" ERR QUIT KILL STOP INT TERM
 ##		Update package or not
 
 main_update(){
-	echo_display " Do you want to update obarun-build package? [y|n]"
+	out_action "Do you want to update obarun-build package? [y|n]"
 
 	reply_answer
 
@@ -60,8 +60,8 @@ main_update(){
 		pac_update "obarun-build" "/var/lib/obarun/obarun-build" "$GIT_ADDR" || die " Impossible to update" "clean_install"
 		sourcing
 	else
-		echo_retry " Some functionalities will cannot working properly without updating"
-		echo_info " Press enter to continue"
+		out_notvalid "Some functionalities will cannot working properly without updating"
+		out_info "Press enter to continue"
 		read enter
 	fi
 }
@@ -94,7 +94,7 @@ check_var(){
 parse_create(){
 		
 	if [[ -z "${named}" ]]; then
-		echo_error " Name must not be empty"
+		out_error "Name must not be empty"
 		usage
 		exit 1
 	fi
@@ -114,14 +114,13 @@ parse_create(){
 parse_build(){
 		
 	if [[ -z "${named}" ]]; then
-		echo_error " Name must not be empty"
+		out_error "Name must not be empty"
 		usage
 		exit 1
 	fi
 	
 	case "${sub_opt}" in
 		b|build)
-		echo 
 			build "${named}" 0 "${rest_opt[@]}"
 			;;
 		r|remake)

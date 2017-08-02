@@ -33,16 +33,16 @@ manage(){
 						named="${pick}"
 						break
 					else 
-						echo_retry " Invalid number, retry :"
+						out_notvalid "Invalid number, retry :"
 					fi
 				esac
 			done
 	}
 	
 	if [[ -z "${named}" ]]; then
-		echo_info " name must not be empty"
+		out_info "name must not be empty"
 		if [[ -n "${container_list[@]}" ]]; then
-			echo_info " please pick one on the following list"
+			out_info "please pick one on the following list"
 			check_existing_container
 		else
 			die
@@ -57,8 +57,8 @@ manage(){
 			fi
 		done
 		if (( $ret )); then
-			echo_info " ${named} doesn't exist"
-			echo_info " please pick one on the following list"
+			out_info "${named} doesn't exist"
+			out_info "please pick one on the following list"
 			check_existing_container
 		fi
 		unset ret
@@ -74,7 +74,7 @@ manage(){
 	fi
 	
 	while true; do
-		echo ""
+		out_void
 		
 		read -p "Manage ${named} > " ans 
 		
@@ -115,12 +115,12 @@ manage(){
 					if [[ "${ans_command}" == @(ls|autostart|checkconfig|top|usernsexec) ]]; then
 						# eval here can be dangerous, need to find a turn around
 						eval lxc-"${ans_command}" "${ans_full[@]}"
-						(( ! $? )) || echo_info "Warning : the command failed, see above"
+						(( ! $? )) || out_info "Warning : the command failed, see above"
 					else
 						# eval here can be dangerous, need to find a turn around
 						eval lxc-"${ans_command}" -n "${named}" "${ans_full[@]}"
 						# don't stop the script if the command fail, but warm it
-						(( ! $? )) || echo_info "Warning : the command failed, see above"
+						(( ! $? )) || eout_info "Warning : the command failed, see above"
 					fi
 				fi
 		esac

@@ -68,7 +68,7 @@ create(){
 	# if yes then exit container exit
 	check_dir "${TARGET}/${named}"
 	if (( ! $? )); then
-		echo_info " Container already exist, do you want overwrite it? [y|n] :"
+		out_info "Container already exist, do you want overwrite it? [y|n] :"
 		reply_answer
 		if (( $? )); then
 			die " Exiting"
@@ -78,13 +78,13 @@ create(){
 	fi
 	
 	# create the templates directory on $TARGET
-	echo_display " Create ${TARGET}/${named}/${WORKCONF}"
+	out_action "Create ${TARGET}/${named}/${WORKCONF}"
 	mkdir -p "${TARGET}/${named}/${WORKCONF}" || die " Impossible to create directory ${TARGET}/${named}/${WORKCONF}" "clean_install"
 	
 	# copy configuration file to $TARGET
 	for file in "${file_list[@]}"; do
 		file=${file##*/}
-		echo_display " Copy ${file} templates file to ${TARGET}/${named}/${WORKCONF}"
+		out_action "Copy ${file} templates file to ${TARGET}/${named}/${WORKCONF}"
 		cp "${TEMPLATES}/${file}" "${TARGET}/${named}/${WORKCONF}" || die " Impossible to copy ${file}" "clean_install"
 	done
 	
@@ -119,25 +119,25 @@ build(){
 	
 	clean_build(){
 		lxc_command_parse "stop" "${named}-${named_version}" -k
-		echo_display " Would you like to destroy the container? [y|n]"
+		out_action "Would you like to destroy the container? [y|n]"
 		reply_answer
 		if (( ! $? )); then
 			lxc_command_parse "destroy" "${named}-${named_version}"
 			rm -rf "${target}/${named}-${named_version}"
 		fi
-		echo_valid " Restore your shell options"
+		out_valid "Restore your shell options"
 		shellopts_restore
 	}
 	
 	# check if sources variables is set
 	if [[ -z "${SOURCES}" ]]; then
-		die " Aborting : SOURCES variables on /etc/obarun/build.conf is not set" "clean_build"
+		die "Aborting : SOURCES variables on /etc/obarun/build.conf is not set" "clean_build"
 	fi
 	
 	# be sure that $named exist on $SOURCES directory
 	check_dir "${SOURCES}/${named}"
 	if (( $? )); then
-		die " ${named} do not exist on ${SOURCES} directory" "clean_build"
+		die "${named} do not exist on ${SOURCES} directory" "clean_build"
 	fi
 	
 	# be sure that a PKGBUILD file exit on $SOURCES/$named
@@ -179,7 +179,7 @@ build(){
 		workdir="delta0"
 		
 		#update the main container
-		echo_display " Would you like upgrade the ${SNAP_CONT} container? [y|n]"
+		out_action "Would you like upgrade the ${SNAP_CONT} container? [y|n]"
 		reply_answer
 		if (( ! $? )); then
 			lxc_command_parse "start" "${MAIN_SNAP}" || die " Aborting : impossible to start the container ${MAIN_SNAP}" "clean_build"
@@ -189,7 +189,7 @@ build(){
 			ip link set "${HOST_INTERFACE}" nomaster "${BRIDGE_INTERFACE}"
 			ip link set "${HOST_INTERFACE}" master "${BRIDGE_INTERFACE}"
 			
-			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'pacman -Syu' || echo_info " WARNING : impossible to upgrade ${MAIN_SNAP} container" 
+			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'pacman -Syu' || out_info "WARNING : impossible to upgrade ${MAIN_SNAP} container" 
 			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'poweroff'
 			sleep 2 # be sure that the container is stopped, if not lxc-copy fail
 		fi
@@ -229,13 +229,13 @@ build(){
 	if (( $? )); then
 		mkdir -p "${SAVE_PKG}/${named}/${named_version}"
 	fi
-	cp -f "${target}/${named}-${named_version}/${workdir}/${BUILD_DEST_FILES}/${named}-${named_version}"/*.pkg.tar.xz "${SAVE_PKG}/${named}/${named_version}" || echo_info " WARNING : the resulting package can be copied to ${SAVE_PKG}/${named}/${named_version}"
+	cp -f "${target}/${named}-${named_version}/${workdir}/${BUILD_DEST_FILES}/${named}-${named_version}"/*.pkg.tar.xz "${SAVE_PKG}/${named}/${named_version}" || out_info "WARNING : the resulting package can be copied to ${SAVE_PKG}/${named}/${named_version}"
 	chown -R "${OWNER}":users "${SAVE_PKG}/${named}/${named_version}"
 	
 	# stop the container
 	lxc_command_parse "stop" "${named}-${named_version}" -k || die " Impossible to stop the container" "clean_build"
 	
-	echo_display " Would you like to destroy the container? [y|n]"
+	out_action "Would you like to destroy the container? [y|n]"
 	reply_answer
 	if (( ! $? )); then
 		lxc_command_parse "destroy" "${named}-${named_version}" && rm -rf "${target}/${named}-${named_version}"
@@ -243,7 +243,7 @@ build(){
 }
 
 remake(){
-	echo_bold " Features not implemented"
+	out_error "Features not implemented"
 }
 
 

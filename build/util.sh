@@ -19,14 +19,14 @@
 
 clean_install(){
 	
-	echo_display " Cleaning up"
+	out_action "Cleaning up"
 	
 	kill_process "haveged dirmngr gpg-agent"
 	
 	if [[ -n "${named}" ]]; then
 		if [[ -d "${TARGET}/${named}" ]]; then
 			mount_umount "${TARGET}/${named}/${WORKDIR}/rootfs" "umount"
-			echo_display " Would you like to destroy the container? [y|n]"
+			out_action "Would you like to destroy the container? [y|n]"
 			reply_answer
 			if (( ! $? )); then
 				delete_container "${TARGET}" "${named}"
@@ -34,14 +34,14 @@ clean_install(){
 		fi
 	fi
 	if ip link show type bridge | grep ${BRIDGE_INTERFACE} &>/dev/null; then
-		echo_display " Would you like to destroy the bridge interface? [y|n]"
+		out_action "Would you like to destroy the bridge interface? [y|n]"
 		reply_answer
 		if (( ! $? )); then
 			network_destroy
 		fi
 	fi
 	
-	echo_valid " Restore your shell options"
+	out_valid "Restore your shell options"
 	shellopts_restore
 	
 	exit
@@ -67,13 +67,13 @@ lxc_command_parse(){
 			"lxc-${command}" "${rest_opt[@]}" || return 1 #die " Aborting command : lxc-${command} ${parse_opt[@]:1}"
 		else
 			if [[ -z "${parse_opt[1]}" ]]; then
-				echo_error " name must not be empty"
+				out_error "name must not be empty"
 				return 1
 			fi
 			# if the container was not stopped before exiting of it
 			# the command stop may take time, just warm them
 			if [[ "${command}" == "stop" ]]; then
-				echo_notvalid " Trying to shutdown ${named}, this may take time..."
+				out_notvalid "Trying to shutdown ${named}, this may take time..."
 			fi
 			rest_opt=( "${parse_opt[@]:2}" )
 			"lxc-${command}" -n "${parse_opt[1]}" "${rest_opt[@]}" || return 1 #die " Aborting command : lxc-${command} -n ${parse_opt[1]} ${rest_opt[@]}"

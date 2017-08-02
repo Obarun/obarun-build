@@ -27,7 +27,7 @@ sourcing(){
 		if [[ -f "${list}" ]]; then
 			source "${list}"
 		else
-			echo_error " Missing file : ${list}"
+			out_error "Missing file : ${list}"
 			exit	
 		fi
 	done
@@ -45,7 +45,7 @@ shellopts_set_unset "extglob" 0
 for arg in "$@"; do
     [ "$arg" = "--" ] && break
     if [ "$arg" = "--mapped-uid" -o "$arg" = "--mapped-gid" ]; then
-        echo "This template can't be used for unprivileged containers." 1>&2
+        out_error "This template can't be used for unprivileged containers." 1>&2
         exit 1
     fi
 done
@@ -66,7 +66,7 @@ fi
 
 create_dir(){
 	
-	echo_notvalid " Create needed directory in ${CONT_ROOTFS}"
+	out_action "Create needed directory in ${CONT_ROOTFS}"
 	mkdir -m 0755 -p "${CONT_ROOTFS}"/var/{cache/pacman/pkg,lib/pacman,lib/pacman/sync,log} "${CONT_ROOTFS}"/{dev,run,etc,etc/pacman.d}
 	mkdir -m 0755 -p "${CONT_ROOTFS}"/dev/{pts,shm}
 	mkdir -m 1777 -p "${CONT_ROOTFS}"/tmp
@@ -78,14 +78,14 @@ create_dir(){
 pac_file(){
 	
 	if [[ -d /etc/pacman.d/gnupg && ! -d $CONT_ROOTFS/etc/pacman.d/gnupg ]]; then
-		echo_display " Copying gnupg directory"
+		out_action "Copying gnupg directory"
 		cp -a /etc/pacman.d/gnupg "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy gnupg directory" 
 	fi
 	
-	echo_display " Copying mirrorlist"
+	out_action "Copying mirrorlist"
 	cp -af /etc/pacman.d/mirrorlist "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy mirrorlist list" 
 	
-	echo_display " Copying pacman database"
+	out_action "Copying pacman database"
 	cp -f "/var/lib/pacman/sync/"*.* "${CONT_ROOTFS}/var/lib/pacman/sync/" || die " Impossible to copy pacman database" 
 	
 	return 0 
@@ -102,7 +102,7 @@ install_cont() {
 	
 	# pacman installation push mirrorlist to .pacsave,
 	# so copy again to erase the change
-	echo_display " Copying mirrorlist"
+	out_action "Copying mirrorlist"
 	cp -af /etc/pacman.d/mirrorlist "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy mirrorlist list" 
 	
     return 0
@@ -111,16 +111,16 @@ install_cont() {
 # customize container
 customize_cont() {
 	
-	echo_display " Copying locale file at ${CONT_ROOTFS}/etc/"  
+	out_action "Copying locale file at ${CONT_ROOTFS}/etc/"  
     cp -fp /etc/locale.conf /etc/locale.gen "${CONT_ROOTFS}/etc/" || die  " Impossible to copy locale file" 
 	
-	echo_display " Copy resolv.conf in ${CONT_ROOTFS}"
+	out_action "Copy resolv.conf in ${CONT_ROOTFS}"
 	cp -f /etc/resolv.conf "${CONT_ROOTFS}/etc/resolv.conf" || die  " Impossible to copy the file resolv.conf" 
 	
-	echo_display " Copy pacman.conf in ${CONT_ROOTFS}"
+	out_action "Copy pacman.conf in ${CONT_ROOTFS}"
 	cp -f "${PAC_CONF}" "${CONT_ROOTFS}"/etc || die  " Impossible to copy the file ${PAC_CONF}" 
 	
-	echo_display " Copy makepkg.conf in ${CONT_ROOTFS}"
+	out_action "Copy makepkg.conf in ${CONT_ROOTFS}"
 	cp -f "${MAKEPKG_CONF}" "${CONT_ROOTFS}"/etc || die  " Impossible to copy the file ${MAKEPKG_CONF}" 
 	
 	config_hostname
@@ -144,7 +144,7 @@ customize_cont() {
 
 config_hostname(){
 	
-	echo_display " Define hostname as : ${HOSTNAME}"
+	out_action "Define hostname as : ${HOSTNAME}"
 	if [[ -n "$HOSTNAME" ]]; then
 		sed -i 's/ .*$//' "${CONT_ROOTFS}/etc/hosts" || die  " Impossible to define hosts" 
 	fi
@@ -155,65 +155,65 @@ config_hostname(){
 	sed -i '/127.0.0.1/s/$/ '$HOSTNAME'/' "${CONT_ROOTFS}/etc/hosts" || die  " Impossible to define hosts" 
 	sed -i '/::1/s/$/ '$HOSTNAME'/' "${CONT_ROOTFS}/etc/hosts" || die  " Impossible to define hosts" 
 	
-	echo_valid " hostname was configured successfully"
+	out_valid "hostname was configured successfully"
 	
 }
 config_locale(){
 	
-	echo_display " Define locale"
+	out_action "Define locale"
 	chroot "${CONT_ROOTFS}" locale-gen || die  " Impossible to launch locale-gen" 
 	echo LANG="$LOCALE" > "${CONT_ROOTFS}/etc/locale.conf" || die  " Impossible to define locale.conf" 
     echo LC_COLLATE=C >> "${CONT_ROOTFS}/etc/locale.conf" || die  " Impossible to define locale.conf" 
 	
-	echo_valid " Locale was created successfully"
+	out_valid "Locale was created successfully"
 	
 }
 config_localetime(){
 	
-	echo_display " Define localtime"
+	out_action "Define localtime"
 	if [[ "$SUBZONE" != "" ]]; then
 		chroot "${CONT_ROOTFS}" ln -sf /usr/share/zoneinfo/$ZONE/$SUBZONE /etc/localtime || die  " Impossible to define localtime" 
 		sed -i "s/TZ=.*$/TZ=$ZONE\/$SUBZONE/g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die  " Impossible to define localtime on s6.conf" 
 				
 	else
-		chroot "${CONT_ROOTFS}" ln -sf /usr/share/zoneinfo/$ZONE ${CONT_ROOTFS}/etc/localtime || die  " Impossible to define localtime" 
+		chroot "${CONT_ROOTFS}" ln -sf /usr/share/zoneinfo/$ZONE /etc/localtime || die  " Impossible to define localtime" 
 		sed -i "s/TZ=.*$/TZ=$ZONE/g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die  " Impossible to define localtime on s6.conf" 
 	fi
 	
-	echo_valid " Localetime was configured successfully"
+	out_valid "Localetime was configured successfully"
 	
 }
 config_keymap(){
 	
-	echo_display " Define keymap" 
+	out_action "Define keymap" 
 	sed -i "s,KEYMAP=.*$,KEYMAP=${KEYMAP},g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die  " Impossible to set ${KEYMAP} on s6.conf" 
 		
-	echo_valid " Console keymap was configured successfully"
+	out_valid "Console keymap was configured successfully"
 	
 }
 config_user(){
 	
-	echo_display " Define ${NEWUSER}"
+	out_action "Define ${NEWUSER}"
 	
 	chroot "${CONT_ROOTFS}" useradd -m -g users -G "wheel,disk,storage,optical,floppy,network" -s /bin/bash "${NEWUSER}" || die  " Failed to create ${NEWUSER}" 
 	
 	echo "${NEWUSER}:${PASSW_USER}" | chroot "${CONT_ROOTFS}" chpasswd || die  " Failed to change ${NEWUSER} password" 
 	
-	echo_valid " User ${NEWUSER} was created successfully" 
+	out_valid "User ${NEWUSER} was created successfully" 
 	
 }
 config_root(){
 	
-	echo_display " Define root"
+	out_action "Define root"
 
 	echo "root:${PASSW_ROOT}" | chroot "${CONT_ROOTFS}" chpasswd || die  " Failed to change root password" 
 	
-	echo_valid " root user was configured successfully" 
+	out_valid "root user was configured successfully" 
 	
 }
 add_at_logroup(){
 	
-	echo_display " add ${NEWUSER} at log group"
+	out_action "add ${NEWUSER} at log group"
 	
 	chroot "${CONT_ROOTFS}" gpasswd -a "${NEWUSER}" log || die  " Impossible to add user ${NEWUSER} at log group" 
 }
@@ -284,6 +284,6 @@ customize_cont
 
 config_container_file
 
-echo_valid " The configuration file is stored at ${TARGET}/${named}/${WORKCONF}."
+out_valid "The configuration file is stored at ${TARGET}/${named}/${WORKCONF}."
 
 
