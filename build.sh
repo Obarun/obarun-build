@@ -21,7 +21,18 @@ WORKDIR="container"
 WORKCONF="config"
 LXC_CONF="/var/lib/lxc/"
 BUILD_DEST_FILES="/home/${NEWUSER}/tmp"
-
+LIBRARY=${LIBRARY:-'/usr/lib/obarun'}
+sourcing(){
+	
+	local list
+	
+	for list in ${LIBRARY}/build/*; do
+		source "${list}"
+	done
+	
+	unset list
+}
+sourcing
 usage(){
 	cat << EOF
 	
