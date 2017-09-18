@@ -120,7 +120,7 @@ manage(){
 						# eval here can be dangerous, need to find a turn around
 						eval lxc-"${ans_command}" -n "${named}" "${ans_full[@]}"
 						# don't stop the script if the command fail, but warm it
-						(( ! $? )) || eout_info "Warning : the command failed, see above"
+						(( ! $? )) || out_info "Warning : the command failed, see above"
 					fi
 				fi
 		esac

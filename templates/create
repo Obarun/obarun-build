@@ -221,8 +221,8 @@ config_console(){
 
 	# enable getty on active ttys
 	# enable getty on active ttys
-    local nttys=$(grep "^lxc.tty" "${START_CONF}"| head -n1 | cut -d= -f2 | tr -d "[:blank:]")
-    local devttydir=$(grep "^lxc.devttydir" "${START_CONF}" | head -n1 | cut -d= -f2 | tr -d "[:blank:]")
+    local nttys=$(grep "^lxc.tty.max" "${START_CONF}"| head -n1 | cut -d= -f2 | tr -d "[:blank:]")
+    local devttydir=$(grep "^lxc.tty.dir" "${START_CONF}" | head -n1 | cut -d= -f2 | tr -d "[:blank:]")
     local devtty=""
     
     # bind getty instances to /dev/<devttydir>/tty* if lxc.devttydir is set
@@ -251,21 +251,21 @@ config_container_file() {
    
     rm -f ${config}
    
-    echo "lxc.utsname = ${named}" >> "${config}" || die  " Impossible to config lxc.utsname at ${config}" 
+    echo "lxc.uts.name = ${named}" >> "${config}" || die  " Impossible to config lxc.uts.name at ${config}" 
 	echo "lxc.arch = ${ARCH}" >> "${config}" || die  " Impossible to config lxc.arch at ${config}" 
-	echo "lxc.rootfs = ${CONT_ROOTFS}" >> "${config}" || die  " Impossible to config lxc.rootfs at ${config}" 
-    echo "lxc.rootfs.backend = dir" >> "${config}" || die  " Impossible to config lxc.rootfs.backend at ${config}" 
+	echo "lxc.rootfs.path = ${CONT_ROOTFS}" >> "${config}" || die  " Impossible to config lxc.rootfs.path at ${config}" 
+    echo "lxc.rootfs.path.backend = dir" >> "${config}" || die  " Impossible to config lxc.rootfs.path.backend at ${config}" 
     if [ -e "${START_CONF}" ]; then 
         echo "lxc.include = ${START_CONF}" >> "${config}" || die  " Impossible to config lxc.include at ${config}" 
     fi
     if (( ${CREATE_BRIDGE} ));then
-		echo "lxc.network.type = ${LXC_NETWORK_TYPE}" >> "${config}" || die  " Impossible to config lxc.network.type at ${config}" 
-		echo "lxc.network.link = ${LXC_NETWORK_LINK}" >> "${config}" || die  " Impossible to config lxc.network.link at ${config}" 
-		echo "lxc.network.flags = ${LXC_NETWORK_FLAGS}" >> "${config}" || die  " Impossible to config lxc.network.flags at ${config}" 
-		echo "lxc.network.ipv4 = ${LXC_NETWORK_IPV4}" >> "${config}" || die  " Impossible to config lxc.network.ipv4 at ${config}" 
-		echo "lxc.network.ipv4.gateway = ${LXC_NETWORK_IPV4_GATEWAY}" >> "${config}" || die  " Impossible to config lxc.network.ipv4.gateway at ${config}" 
-		echo "lxc.network.name=${LXC_NETWORK_NAME}" >> "${config}" || die  " Impossible to config lxc.network.name at ${config}" 
-		echo "lxc.network.hwaddr=${LXC_NETWORK_HWADDR}" >> "${config}" || die  " Impossible to config lxc.network.hwaddr at ${config}" 
+		echo "lxc.net.0.type = ${LXC_NETWORK_TYPE}" >> "${config}" || die  " Impossible to config lxc.net.0.type at ${config}" 
+		echo "lxc.net.0.link = ${LXC_NETWORK_LINK}" >> "${config}" || die  " Impossible to config lxc.net.0.link at ${config}" 
+		echo "lxc.net.0.flags = ${LXC_NETWORK_FLAGS}" >> "${config}" || die  " Impossible to config lxc.net.0.flags at ${config}" 
+		echo "lxc.net.0.ipv4 = ${LXC_NETWORK_IPV4}" >> "${config}" || die  " Impossible to config lxc.net.0.ipv4 at ${config}" 
+		echo "lxc.net.0.ipv4.gateway = ${LXC_NETWORK_IPV4_GATEWAY}" >> "${config}" || die  " Impossible to config lxc.net.0.ipv4.gateway at ${config}" 
+		echo "lxc.net.0.name=${LXC_NETWORK_NAME}" >> "${config}" || die  " Impossible to config lxc.net.0.name at ${config}" 
+		echo "lxc.net.0.hwaddr=${LXC_NETWORK_HWADDR}" >> "${config}" || die  " Impossible to config lxc.net.0.hwaddr at ${config}" 
     fi
     
 	return 0

@@ -17,8 +17,8 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 network_destroy(){
+	ip link set "${BRIDGE_INTERFACE}" promisc off down
 	ip link set "${HOST_INTERFACE}" nomaster
-	ip link set "${BRIDGE_INTERFACE}" down
 	ip link delete "${BRIDGE_INTERFACE}" type bridge
 	ip route add default via "${ROUTER_ADDR}"
 }
@@ -32,9 +32,15 @@ network_create(){
 	ip link show type bridge | grep ${BRIDGE_INTERFACE} &>/dev/null
 	if (( $? )); then
 		ip link add name "${BRIDGE_INTERFACE}" address 00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//') type bridge
-		ip link set "${BRIDGE_INTERFACE}" up
-		ip addr add "${BRIDGE_ADDR}" dev "${BRIDGE_INTERFACE}" 
-		ip link set "${HOST_INTERFACE}" master "${BRIDGE_INTERFACE}"
+		ip link set "${BRIDGE_INTERFACE}" promisc on up
+        ip addr flush dev "${BRIDGE_INTERFACE}" scope host &>/dev/null
+        ip addr flush dev "${BRIDGE_INTERFACE}" scope site &>/dev/null
+        ip addr flush dev "${BRIDGE_INTERFACE}" scope global &>/dev/null
+        ip link set dev "${HOST_INTERFACE}" master "$BRIDGE_INTERFACE"
+        bridge link set dev "${BRIDGE_INTERFACE}" state 3
+		#ip link set "${BRIDGE_INTERFACE}" up
+		#ip addr add "${BRIDGE_ADDR}" dev "${BRIDGE_INTERFACE}" 
+		#ip link set "${HOST_INTERFACE}" master "${BRIDGE_INTERFACE}"
 	fi
 	if [[ -f /etc/iptables/iptables.rules ]];then
 		if ! $(grep -q "POSTROUTING -o ${HOST_INTERFACE} -j" /etc/iptables/iptables.rules 2>/dev/null); then
@@ -56,5 +62,6 @@ network_start(){
 }
 
 network_stop(){
+	ip link set "${BRIDGE_INTERFACE}" promisc off down
 	ip link set "${HOST_INTERFACE}" nomaster
 }

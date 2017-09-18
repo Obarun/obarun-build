@@ -8,7 +8,7 @@ pkgdesc=" Script for building package on clean environment with lxc container"
 arch=(x86_64)
 url="file:///var/lib/obarun/$pkgname/update_package/$pkgname"
 license=('BEERWARE')
-depends=('git' 'pacman' 'obarun-libs' 'lxc')
+depends=('git' 'pacman' 'obarun-libs' 'lxc=>2.1.0')
 backup=('etc/obarun/build.conf')
 install=
 source=("$pkgname::git+file:///var/lib/obarun/$pkgname/update_package/$pkgname")
