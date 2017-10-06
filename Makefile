@@ -12,7 +12,7 @@ EXTRA = $$(find templates/ -type f)
 		
 install:
 	
-	for i in $(SCRIPTS) $(FILES); do \
+	for i in $(SCRIPTS) $(FILES) $(EXTRA); do \
 		sed -i 's,@BINDIR@,$(BINDIR),' $$i; \
 	done
 	
