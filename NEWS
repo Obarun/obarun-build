@@ -1,0 +1,10 @@
+Changelog for obarun-build
+
+In 0.1.1
+--------
+	
+	- Pass under ISC license
+	- Templates/create : fix key coming from new lxc version, install base
+	first.
+	-Pkglist_base : add applysys package
+	

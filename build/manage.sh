@@ -1,20 +1,12 @@
-#!/usr/bin/bash
-#
-# Functions file for obarun-build package
-#
-# Authors:
-# Eric Vidal <eric@obarun.org>
-#
-# Copyright (C) 2016-2017 Eric Vidal <eric@obarun.org>
-#
-# "THE BEERWARE LICENSE" (Revision 42):
-# <eric@obarun.org> wrote this file.  As long as you retain this notice you
-# can do whatever you want with this stuff. If we meet some day, and you think
-# this stuff is worth it, you can buy me a beer in return.   Eric Vidal http://obarun.org
-#
-# This script is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#!@BINDIR@/bash
+# Copyright (c) 2015-2017 Eric Vidal <eric@obarun.org>
+# All rights reserved.
+# 
+# This file is part of Obarun. It is subject to the license terms in
+# the LICENSE file found in the top-level directory of this
+# distribution and at https://github.com/Obarun/obarun-build/LICENSE
+# This file may not be copied, modified, propagated, or distributed
+# except according to the terms contained in the LICENSE file.
 
 # ${1} name of the container to manage.
 # ${2} come from switch or not : 0 for not
