@@ -96,9 +96,12 @@ install_cont() {
 	create_dir
 	pac_file
 	mount_umount "${CONT_ROOTFS}" "mount" || die " Failed to mount ${CONT_ROOTFS}"
-
+	
+	# install base first
+	pacman -r "${CONT_ROOTFS}" -S $(grep -h -v ^# $TARGET/$named/$WORKCONF/pkglist_base) --noconfirm --config "${PAC_CONF}" --gpgdir "${GPG_DIR}" || die " Impossible to install packages" 
+	
 	# install package
-    pacman -r "${CONT_ROOTFS}" -S $(grep -h -v ^# $TARGET/$named/$WORKCONF/pkglist_*) --noconfirm --config "${PAC_CONF}" --gpgdir "${GPG_DIR}" || die " Impossible to install packages" 
+    pacman -r "${CONT_ROOTFS}" -S $(grep -h -v ^# $TARGET/$named/$WORKCONF/pkglist_{boot,devel,extra}) --noconfirm --config "${PAC_CONF}" --gpgdir "${GPG_DIR}" || die " Impossible to install packages" 
 	
 	# pacman installation push mirrorlist to .pacsave,
 	# so copy again to erase the change
@@ -262,7 +265,7 @@ config_container_file() {
 		echo "lxc.net.0.type = ${LXC_NETWORK_TYPE}" >> "${config}" || die  " Impossible to config lxc.net.0.type at ${config}" 
 		echo "lxc.net.0.link = ${LXC_NETWORK_LINK}" >> "${config}" || die  " Impossible to config lxc.net.0.link at ${config}" 
 		echo "lxc.net.0.flags = ${LXC_NETWORK_FLAGS}" >> "${config}" || die  " Impossible to config lxc.net.0.flags at ${config}" 
-		echo "lxc.net.0.ipv4 = ${LXC_NETWORK_IPV4}" >> "${config}" || die  " Impossible to config lxc.net.0.ipv4 at ${config}" 
+		echo "lxc.net.0.ipv4.address = ${LXC_NETWORK_IPV4}" >> "${config}" || die  " Impossible to config lxc.net.0.ipv4 at ${config}" 
 		echo "lxc.net.0.ipv4.gateway = ${LXC_NETWORK_IPV4_GATEWAY}" >> "${config}" || die  " Impossible to config lxc.net.0.ipv4.gateway at ${config}" 
 		echo "lxc.net.0.name=${LXC_NETWORK_NAME}" >> "${config}" || die  " Impossible to config lxc.net.0.name at ${config}" 
 		echo "lxc.net.0.hwaddr=${LXC_NETWORK_HWADDR}" >> "${config}" || die  " Impossible to config lxc.net.0.hwaddr at ${config}" 
