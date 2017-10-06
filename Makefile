@@ -26,7 +26,7 @@ install:
 	install -Dm644 build.conf $(DESTDIR)/etc/obarun/build.conf
 	
 	for i in $(EXTRA); do \
-		if [[ $$i == create ]]; then \
+		if [[ $$i == templates/create ]]; then \
 				install -Dm755 $$i $(DESTDIR)/usr/share/obarun/obarun-build/$$i; \
 			else \
 				install -Dm644 $$i $(DESTDIR)/usr/share/obarun/obarun-build/$$i; \
