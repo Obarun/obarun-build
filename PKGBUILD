@@ -19,7 +19,6 @@ url="file:///var/lib/obarun/$pkgname/update_package/$pkgname"
 license=(ISC)
 depends=('git' 'pacman' 'obarun-libs' 'lxc')
 backup=('etc/obarun/build.conf')
-install=
 source=("$pkgname::git+file:///var/lib/obarun/$pkgname/update_package/$pkgname")
 md5sums=('SKIP')
 validpgpkeys=('6DD4217456569BA711566AC7F06E8FDE7B45DAAC') # Eric Vidal
