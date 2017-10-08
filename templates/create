@@ -12,6 +12,8 @@
 
 # functions file for obarun-build package
 
+trap "exit 1" INT ERR KILL
+
 sourcing(){
 	
 	local list
@@ -250,7 +252,6 @@ config_container_file() {
     echo "lxc.uts.name = ${named}" >> "${config}" || die  " Impossible to config lxc.uts.name at ${config}" 
 	echo "lxc.arch = ${ARCH}" >> "${config}" || die  " Impossible to config lxc.arch at ${config}" 
 	echo "lxc.rootfs.path = ${CONT_ROOTFS}" >> "${config}" || die  " Impossible to config lxc.rootfs.path at ${config}" 
-    echo "lxc.rootfs.path.backend = dir" >> "${config}" || die  " Impossible to config lxc.rootfs.path.backend at ${config}" 
     if [ -e "${START_CONF}" ]; then 
         echo "lxc.include = ${START_CONF}" >> "${config}" || die  " Impossible to config lxc.include at ${config}" 
     fi
