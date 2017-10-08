@@ -66,90 +66,31 @@ if [[ -z "${1}" || -z "${2}" ]] && [[ "${1}" != @(M|Manage) ]]; then
 	exit 1
 fi
 
-parse_command=( "${@}" )
-main_opt=( "${parse_command[0]}" )
-sub_opt=( "${parse_command[1]}" )
-named=( "${parse_command[2]}" )
-named_in_opt=( "${parse_command[@]:2}" )
-rest_opt=( "${parse_command[@]:3}" )
+cmd=( "${@}" )
+operation=( "${cmd[0]}" )
+target=( "${cmd[1]}" )
+target_opts=( "${cmd[@]:1}" )
+arguments=( "${cmd[2]}" )
+arguments_opts=( "${cmd[@]:3}" )
 
 check_var(){
-	echo main_opt=${main_opt}
-	echo sub_opt=${sub_opt}
-	echo named=${named}
-	echo named_in_opt=${named_in_opt[@]}
-	echo rest_opt=${rest_opt[@]}
+	echo cmd=${cmd[@]}
+	echo operation=${operation[@]}
+	echo target=${target[@]}
+	#echo target_opts=${target_opts[@]}
+	echo arguments=${arguments[@]}
+	echo arguments_opts=${arguments_opts[@]}
 }
 #check_var
 
-parse_create(){
-		
-	if [[ -z "${named}" ]]; then
-		out_error "Name must not be empty"
-		usage
-		exit 1
-	fi
-	
-	case "${sub_opt}" in
-		c|create)
-			create "${named}" "${rest_opt[@]}"
-			;;
-		*)
-			usage
-			exit 1
-			;;
-	esac
-
-}
-
-parse_build(){
-		
-	if [[ -z "${named}" ]]; then
-		out_error "Name must not be empty"
-		usage
-		exit 1
-	fi
-	
-	case "${sub_opt}" in
-		b|build)
-			build "${named}" 0 "${rest_opt[@]}"
-			;;
-		r|remake)
-			remake "${named}" 0 "${rest_opt[@]}"
-			;;
-		s|snap)
-			build "${named}" 1 "${rest_opt[@]}"
-			;;
-		*)
-			usage
-			exit 1
-			;;
-	esac
-
-}
-
-parse_manage(){
-		
-	case "${sub_opt}" in
-		n|network)	
-			manage_network
-			;;
-		# Allow one character selection for other command
-		*)	
-			manage "${sub_opt}" #special case here, $sub_opt replace $named
-			;;
-	esac
-	
-}
-
-case "${main_opt}" in
-	C|Create)
+case "${operation}" in
+	C|Create|c|create)
 		parse_create 
 	    ;;
-	B|Build)	
+	B|Build|b|build)	
 		parse_build 
 		;;
-	M|Manage)
+	M|Manage|m|manage)
 		parse_manage 
 		;;
 	*)
@@ -159,3 +100,4 @@ case "${main_opt}" in
 esac
 
 exit 0
+
