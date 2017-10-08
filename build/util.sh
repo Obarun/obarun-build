@@ -8,9 +8,10 @@
 # This file may not be copied, modified, propagated, or distributed
 # except according to the terms contained in the LICENSE file.
 
-
+# ${1} name of the container
 clean_install(){
 	
+	local named="${1}"
 	out_action "Cleaning up"
 	
 	kill_process "haveged dirmngr gpg-agent"
@@ -18,7 +19,7 @@ clean_install(){
 	if [[ -n "${named}" ]]; then
 		if [[ -d "${TARGET}/${named}" ]]; then
 			mount_umount "${TARGET}/${named}/${WORKDIR}/rootfs" "umount"
-			out_action "Would you like to destroy the container? [y|n]"
+			out_action "Would you like to destroy the container ${named}? [y|n]"
 			reply_answer
 			if (( ! $? )); then
 				delete_container "${TARGET}" "${named}"
