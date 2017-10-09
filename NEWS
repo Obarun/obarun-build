@@ -1,5 +1,10 @@
 Changelog for obarun-build
 
+In 0.1.3
+	
+	- bug fix
+	- split function from build.sh into divers files at build/ directory
+
 In 0.1.1
 --------
 	
