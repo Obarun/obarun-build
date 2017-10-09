@@ -112,9 +112,6 @@ customize_cont() {
 	out_action "Copying locale file at ${CONT_ROOTFS}/etc/"  
     cp -fp /etc/locale.conf /etc/locale.gen "${CONT_ROOTFS}/etc/" || die  " Impossible to copy locale file" 
 	
-	out_action "Copy resolv.conf in ${CONT_ROOTFS}"
-	cp -f /etc/resolv.conf "${CONT_ROOTFS}/etc/resolv.conf" || die  " Impossible to copy the file resolv.conf" 
-	
 	out_action "Copy pacman.conf in ${CONT_ROOTFS}"
 	cp -f "${PAC_CONF}" "${CONT_ROOTFS}"/etc || die  " Impossible to copy the file ${PAC_CONF}" 
 	
@@ -137,6 +134,8 @@ customize_cont() {
 	
 	config_console
 	
+	config_resolv
+	
 	return 0
 }
 
@@ -149,7 +148,7 @@ config_hostname(){
 
 	sed -i "s/HOSTNAME=.*$/HOSTNAME=$HOSTNAME/g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die  " Impossible to define hostname on s6.conf" 
 	
-	#echo "$HOSTNAME" > /etc/hostname || die " Impossible to define hostname"
+	echo "$HOSTNAME" > "${CONT_ROOTFS}/etc/hostname" || die " Impossible to define hostname"
 	sed -i '/127.0.0.1/s/$/ '$HOSTNAME'/' "${CONT_ROOTFS}/etc/hosts" || die  " Impossible to define hosts" 
 	sed -i '/::1/s/$/ '$HOSTNAME'/' "${CONT_ROOTFS}/etc/hosts" || die  " Impossible to define hosts" 
 	
@@ -218,27 +217,21 @@ add_at_logroup(){
 config_console(){
 
 	# enable getty on active ttys
-	# enable getty on active ttys
     local nttys=$(grep "^lxc.tty.max" "${START_CONF}"| head -n1 | cut -d= -f2 | tr -d "[:blank:]")
     local devttydir=$(grep "^lxc.tty.dir" "${START_CONF}" | head -n1 | cut -d= -f2 | tr -d "[:blank:]")
-    local devtty=""
-    
+      
     # bind getty instances to /dev/<devttydir>/tty* if lxc.devttydir is set
     if [[ -n "${devttydir}" ]]; then
-		devtty="${devttydir}-"
 		echo "${devttydir}/console" >> "${CONT_ROOTFS}/etc/securetty" || die  " Impossible to set ${devttydir}/console in ${CONT_ROOTFS}/etc/securetty" 
-	fi
-    
-    # update securetty to allow console login if devttydir is set
-    if [ -n "${devttydir}" ]; then
-        for i in $(seq 1 ${nttys:-1}); do
+		# update securetty to allow console login if devttydir is set
+		for i in $(seq 1 ${nttys:-1}); do
             echo "${devttydir}/tty${i}" >> "${CONT_ROOTFS}/etc/securetty" || die  " Impossible to set ${devttydir}/tty${i} in ${CONT_ROOTFS}/etc/securetty" 
         done
-    fi
-	
+	fi
+   	
 	# optional here, do not die if an error is created
 	echo "# For libvirt/Virtual Machine Monitor" >> ${CONT_ROOTFS}/etc/securetty
-    echo "pts/0"        >> ${CONT_ROOTFS}/etc/securetty
+    echo "pts/0" >> ${CONT_ROOTFS}/etc/securetty
     
     return 0
 }
@@ -267,6 +260,11 @@ config_container_file() {
     
 	return 0
 	
+}
+
+config_resolv() {
+	out_action "Confing resolv.conf in ${CONT_ROOTFS} with 8.8.8.8 as nameserver"
+	echo "nameserver 8.8.8.8" > "${CONT_ROOTFS}/etc/resolv.conf" || die  " Impossible to copy the file resolv.conf" 
 }
 
 if (( ${CREATE_BRIDGE} ));then
