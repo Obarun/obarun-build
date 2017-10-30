@@ -116,8 +116,7 @@ build(){
 	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}"\
 		-- bash -c 'su "${newuser}"  -c "mkdir -p ${build_dest_files}"' || die " Impossible to create ${BUILD_DEST_FILES} directory" "clean_build"
 	
-	#mkdir -p -m1777 "${TARGET}/${named}-${named_version}/${WORKDIR}/rootfs/${BUILD_DEST_FILES}" || die "peut pas copied"
-	cp -ra "${SOURCES}/${named}" "${target}/${named}-${named_version}/${workdir}/${BUILD_DEST_FILES}/${named}-${named_version}" || die " Impossible to copy file from ${SOURCES}/${named}-${named_version}" "clean_build"
+	cp -a "${SOURCES}/${named}" "${target}/${named}-${named_version}/${workdir}/${BUILD_DEST_FILES}/${named}-${named_version}" || die " Impossible to copy file from ${SOURCES}/${named}" "clean_build"
 		
 	# give a good permissions at the tmp/$named onto the container
 	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}"\
