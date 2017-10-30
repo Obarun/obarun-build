@@ -32,7 +32,7 @@ shellopts_set_unset "extglob" 0
 
 ##		Clean before exit
 
-trap "clean_install" ERR QUIT KILL STOP INT TERM 
+trap "clean_install" ERR QUIT KILL INT TERM 
 
 ##		Must be run with root privilegies 
 
@@ -61,7 +61,7 @@ if [[ "$UPDATE" == "yes" ]]; then
 	main_update
 fi
 
-if [[ -z "${1}" || -z "${2}" ]] && [[ "${1}" != @(M|Manage) ]]; then
+if [[ -z "${1}" || -z "${2}" ]] && [[ "${1}" != @(M|m|Manage) ]]; then
 	usage
 	exit 1
 fi
