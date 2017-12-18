@@ -87,6 +87,7 @@ build(){
 		out_action "Would you like upgrade the ${SNAP_CONT} container? [y|n]"
 		reply_answer
 		if (( ! $? )); then
+			/usr/lib/lxc/lxc-net start
 			lxc_command_parse "start" "${MAIN_SNAP}" || die " Aborting : impossible to start the container ${MAIN_SNAP}" "clean_install"
 			
 			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'pacman -Syu' || out_info "WARNING : impossible to upgrade ${MAIN_SNAP} container" 
