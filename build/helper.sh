@@ -17,8 +17,7 @@ e.g obarun-build Create create container
     obarun-build C c container
     obarun-build B b cups
     obarun-build M container
-    obarun-build M network${reset}
-    
+      
 ${bold}General options :${reset}
     C, Create : create a container
     B, Build : build a package onto a container
@@ -31,8 +30,6 @@ ${bold}Sub options :${reset}
         b, build : build a package onto a container
         s, snap : build a package onto a snapshot container
         r, remake : build a package onto an archived container
-    for Manage :
-        n, network : manage the bridge
 EOF
 	exit 0
 }
@@ -55,7 +52,6 @@ manage_help(){
 	printf "%-15s %-15s\n" "info" "query information about a container" >&1
 	printf "%-15s %-15s\n" "ls" "list the containers existing on the system" >&1
 	printf "%-15s %-15s\n" "monitor" "monitor the container state" >&1
-	printf "%-15s %-15s\n" "network" "create/start/stop/destroy the bridge" >&1
 	printf "%-15s %-15s\n" "quit" "exit from this menu" >&1
 	printf "%-15s %-15s\n" "snapshot" "snapshot an existing container" >&1
 	printf "%-15s %-15s\n" "start" "start a container" >&1
@@ -73,11 +69,3 @@ manage_help(){
 	
 }
 
-
-manage_network_help(){
-	printf "%-15s %-15s\n" "create" "create the bridge and start it" >&1
-	printf "%-15s %-15s\n" "destroy" "destroy the bridge" >&1
-	printf "%-15s %-15s\n" "start" "active the bridge" >&1
-	printf "%-15s %-15s\n" "stop" "disactive the bridge" >&1
-	printf "%-15s %-15s\n" "show" "show network" >&1
-}

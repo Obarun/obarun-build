@@ -22,6 +22,8 @@ sourcing(){
 sourcing
 
 TEMPLATES="${TEMPLATES:-/usr/share/obarun/obarun-build/templates}"
+TARGET="${TARGET:-/var/cache/obarun/pkgbuild}"
+SAVE_PKG="${SAVE_PKG:-/var/cache/obarun/pkg}"
 WORKDIR="container"
 WORKCONF="config"
 LXC_CONF="/var/lib/lxc/"
@@ -71,20 +73,6 @@ parse_build(){
 			;;
 	esac
 
-}
-
-parse_manage(){
-		
-	case "${target}" in
-		n|network)	
-			manage_network
-			;;
-		# Allow one character selection for other command
-		*)	
-			manage "${target}" #special case here, $target replace $arguments
-			;;
-	esac
-	
 }
 
 

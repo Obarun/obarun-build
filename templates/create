@@ -12,8 +12,6 @@
 
 # functions file for obarun-build package
 
-trap "exit 1" INT ERR KILL
-
 sourcing(){
 	
 	local list
@@ -31,7 +29,11 @@ sourcing(){
 }
 sourcing
 
-source "${TARGET}/${named}/${WORKCONF}/create.conf" || die " Impossible to source create.conf" 
+ARCH="x86_64"
+CONT_ROOTFS="${TARGET}/${named}/${WORKDIR}/rootfs"
+PAC_CONF="/etc/pacman.conf"
+MAKEPKG_CONF="/etc/makepkg.conf"
+START_CONF="${TARGET}/${named}/${WORKCONF}/start.conf"
 
 shellopts_save
 shellopts_set_unset "extglob" 0
@@ -50,14 +52,6 @@ export PATH=$PATH:/usr/local/bin:/usr/bin:/sbin:/bin
 
 # Ensure strict root's umask doesn't render the VM unusable
 umask 022
-
-if [ -z "$ARCH" ]; then
-	case "$(uname -m)" in
-		i?86) ARCH=i486 ;;
-		arm*) ARCH=arm ;;
-		*) ARCH=$(uname -m) ;;
-	esac
-fi
 
 create_dir(){
 	
@@ -169,11 +163,8 @@ config_localetime(){
 	
 	out_action "Define localtime"
 	if [[ "$SUBZONE" != "" ]]; then
-		chroot "${CONT_ROOTFS}" ln -sf /usr/share/zoneinfo/$ZONE/$SUBZONE /etc/localtime || die  " Impossible to define localtime" 
 		sed -i "s/TZ=.*$/TZ=$ZONE\/$SUBZONE/g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die  " Impossible to define localtime on s6.conf" 
-				
 	else
-		chroot "${CONT_ROOTFS}" ln -sf /usr/share/zoneinfo/$ZONE /etc/localtime || die  " Impossible to define localtime" 
 		sed -i "s/TZ=.*$/TZ=$ZONE/g" "${CONT_ROOTFS}/etc/s6/s6.conf" || die  " Impossible to define localtime on s6.conf" 
 	fi
 	
@@ -249,13 +240,14 @@ config_container_file() {
         echo "lxc.include = ${START_CONF}" >> "${config}" || die  " Impossible to config lxc.include at ${config}" 
     fi
     if (( ${CREATE_BRIDGE} ));then
-		echo "lxc.net.0.type = ${LXC_NETWORK_TYPE}" >> "${config}" || die  " Impossible to config lxc.net.0.type at ${config}" 
-		echo "lxc.net.0.link = ${LXC_NETWORK_LINK}" >> "${config}" || die  " Impossible to config lxc.net.0.link at ${config}" 
-		echo "lxc.net.0.flags = ${LXC_NETWORK_FLAGS}" >> "${config}" || die  " Impossible to config lxc.net.0.flags at ${config}" 
-		echo "lxc.net.0.ipv4.address = ${LXC_NETWORK_IPV4}" >> "${config}" || die  " Impossible to config lxc.net.0.ipv4 at ${config}" 
-		echo "lxc.net.0.ipv4.gateway = ${LXC_NETWORK_IPV4_GATEWAY}" >> "${config}" || die  " Impossible to config lxc.net.0.ipv4.gateway at ${config}" 
-		echo "lxc.net.0.name=${LXC_NETWORK_NAME}" >> "${config}" || die  " Impossible to config lxc.net.0.name at ${config}" 
-		echo "lxc.net.0.hwaddr=${LXC_NETWORK_HWADDR}" >> "${config}" || die  " Impossible to config lxc.net.0.hwaddr at ${config}" 
+		echo "lxc.net.0.type = veth" >> "${config}" || die  " Impossible to config lxc.net.0.type at ${config}" 
+		echo "lxc.net.0.link = lxcbr0" >> "${config}" || die  " Impossible to config lxc.net.0.link at ${config}" 
+		echo "lxc.net.0.flags = up" >> "${config}" || die  " Impossible to config lxc.net.0.flags at ${config}" 
+		echo "lxc.net.0.ipv4.address = 10.0.3.$((RANDOM%253))/24" >> "${config}" || die  " Impossible to config lxc.net.0.ipv4.address at ${config}" 
+		echo "lxc.net.0.ipv4.gateway = 10.0.3.1" >> "${config}" || die  " Impossible to config lxc.net.0.ipv4.gateway at ${config}"
+		echo "lxc.net.0.hwaddr = ${LXC_NETWORK_HWADDR}" >> "${config}" || die  " Impossible to config lxc.net.0.hwaddr at ${config}" 
+		echo "lxc.net.0.name = eth0" >> "${config}" || die  " Impossible to config lxc.net.0.name at ${config}" 
+		/usr/lib/lxc/lxc-net start
     fi
     
 	return 0
@@ -266,10 +258,6 @@ config_resolv() {
 	out_action "Confing resolv.conf in ${CONT_ROOTFS} with 8.8.8.8 as nameserver"
 	echo "nameserver 8.8.8.8" > "${CONT_ROOTFS}/etc/resolv.conf" || die  " Impossible to copy the file resolv.conf" 
 }
-
-if (( ${CREATE_BRIDGE} ));then
-	network_create
-fi
 
 mkdir -p "${CONT_ROOTFS}"
 
