@@ -11,7 +11,7 @@
 # ${1} name of the container
 clean_install(){
 	
-	local named="${1}"
+	#local named="${1}"
 	out_action "Cleaning up"
 	
 	kill_process "haveged dirmngr gpg-agent"
@@ -22,16 +22,13 @@ clean_install(){
 			out_action "Would you like to destroy the container ${named}? [y|n]"
 			reply_answer
 			if (( ! $? )); then
-				delete_container "${TARGET}" "${named}"
+				delete_container "${TARGET}" "${named}" 2&>/dev/null
 			fi
 		fi
 	fi
-	if ip link show type bridge | grep ${BRIDGE_INTERFACE} &>/dev/null; then
-		out_action "Would you like to destroy the bridge interface? [y|n]"
-		reply_answer
-		if (( ! $? )); then
-			network_destroy
-		fi
+	if [[ -f /run/lxc/network_up ]];then
+		out_action "Shutting down the container network"
+		/usr/lib/lxc/lxc-net stop
 	fi
 	
 	out_valid "Restore your shell options"
@@ -116,3 +113,4 @@ delete_container(){
 	
 	unset _named _path
 }
+	

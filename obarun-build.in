@@ -32,7 +32,7 @@ shellopts_set_unset "extglob" 0
 
 ##		Clean before exit
 
-trap "clean_install" ERR QUIT KILL INT TERM 
+trap "clean_install" QUIT KILL INT TERM 
 
 ##		Must be run with root privilegies 
 
@@ -91,7 +91,7 @@ case "${operation}" in
 		parse_build 
 		;;
 	M|Manage|m|manage)
-		parse_manage 
+		manage "${target}" 
 		;;
 	*)
 	    usage

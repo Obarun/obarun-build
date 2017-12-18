@@ -89,11 +89,6 @@ build(){
 		if (( ! $? )); then
 			lxc_command_parse "start" "${MAIN_SNAP}" || die " Aborting : impossible to start the container ${MAIN_SNAP}" "clean_install"
 			
-			# assigning the host interface to the bridge cause a losing connection on the host
-			# so disable it and reassigne it solve this issue
-			ip link set "${HOST_INTERFACE}" nomaster "${BRIDGE_INTERFACE}"
-			ip link set "${HOST_INTERFACE}" master "${BRIDGE_INTERFACE}"
-			
 			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'pacman -Syu' || out_info "WARNING : impossible to upgrade ${MAIN_SNAP} container" 
 			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'poweroff'
 			sleep 2 # be sure that the container is stopped, if not lxc-copy fail
@@ -107,11 +102,6 @@ build(){
 	# start the container
 	lxc_command_parse "start" "${named}-${named_version}" || die " Aborting : impossible to start the container ${named}-${named_version}" "clean_build"
 			
-	# assigning the host interface to the bridge cause a losing connection on the host
-	# so disable it and reassigne it solve this issue
-	ip link set "${HOST_INTERFACE}" nomaster "${BRIDGE_INTERFACE}"
-	ip link set "${HOST_INTERFACE}" master "${BRIDGE_INTERFACE}"
-		
 	# copy $SOURCES/$named files onto the container
 	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}"\
 		-- bash -c 'su "${newuser}"  -c "mkdir -p ${build_dest_files}"' || die " Impossible to create ${BUILD_DEST_FILES} directory" "clean_build"
@@ -134,7 +124,7 @@ build(){
 		mkdir -p "${SAVE_PKG}/${named}/${named_version}"
 	fi
 	cp -f "${target}/${named}-${named_version}/${workdir}/${BUILD_DEST_FILES}/${named}-${named_version}"/*.pkg.tar.xz "${SAVE_PKG}/${named}/${named_version}" || out_info "WARNING : the resulting package can be copied to ${SAVE_PKG}/${named}/${named_version}"
-	#chown -R "${OWNER}":users "${SAVE_PKG}/${named}/${named_version}"
+	chown -R "${OWNER}":users "${SAVE_PKG}/${named}/${named_version}"
 	
 	# stop the container
 	lxc_command_parse "stop" "${named}-${named_version}" -k || die " Impossible to stop the container" "clean_build"

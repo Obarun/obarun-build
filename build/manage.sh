@@ -83,9 +83,6 @@ manage(){
 		#check_var
 		
 		case "${ans_command}" in
-			network)
-				manage_network
-				;;
 			switch)
 				named="${parse_ans[1]}"
 				sw=1
@@ -120,44 +117,4 @@ manage(){
 	if (( $sw )); then
 		manage "${named}" "1"
 	fi
-}
-
-
-manage_network(){
-	local ans
-	
-	printf "\n" >&1
-	printf " Type help to see option to control the bridge\n" >&1
-	printf " Type quit for exit\n" >&1
-	printf "\n" >&1
-	
-	while true; do
-		read -e -p "Manage network > " ans
-		case "${ans}" in
-			create)
-				network_create
-				;;
-			start)
-				network_start
-				;;
-			stop)
-				network_stop
-				;;
-			destroy)
-				network_destroy
-				;;
-			show)
-				network_show
-				;;
-			help)
-				manage_network_help
-				;;
-			quit)
-				break
-				;;
-			*)
-				printf " Incorrect command, try help\n" >&1
-				;;
-		esac
-	done
 }

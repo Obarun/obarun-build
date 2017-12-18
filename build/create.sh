@@ -57,6 +57,6 @@ create(){
 		echo WORKCONF :: "${WORKCONF}"
 	}
 	#check_var
-	lxc_command_parse "create" "${named}" -t "${TARGET}/${named}/${WORKCONF}/create" "${_args[@]}" || die " Impossible to create the container"
+	lxc_command_parse "create" "${named}" -t "${TARGET}/${named}/${WORKCONF}/create" "${_args[@]}" || die " Impossible to create the container" "clean_install"
 	
 }
