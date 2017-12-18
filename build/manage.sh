@@ -68,7 +68,7 @@ manage(){
 	while true; do
 		out_void
 		
-		read -p "Manage ${named} > " ans 
+		read -ep "Manage ${named} > " ans 
 		
 		parse_ans=( ${ans[@]} )
 		ans_command=( ${parse_ans[0]} )
