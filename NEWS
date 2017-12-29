@@ -1,5 +1,12 @@
 Changelog for obarun-build
 
+In 0.1.4
+--------
+	- Bugs fix
+	- Remove network features and do it by automatic way
+	- Remove pacman.conf and makepkg.conf file, use files from host
+	- Remove templates/create.conf file and integrate it at templates/create script
+
 In 0.1.3
 	
 	- bug fix
