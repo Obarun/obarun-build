@@ -66,7 +66,10 @@ build(){
 	if (( ! $? )); then
 		die " Container already exist, please choose another name" "clean_install"
 	fi
-	
+	# create bridge if it not exist yet
+	if [[ ! -f /run/lxc/network_up ]]; then
+		/usr/lib/lxc/lxc-net start
+	fi
 	# snap is used?
 	if (( "${snap}" ));then
 		if [[ -z "${MAIN_SNAP}" ]];then
@@ -87,9 +90,7 @@ build(){
 		out_action "Would you like upgrade the ${SNAP_CONT} container? [y|n]"
 		reply_answer
 		if (( ! $? )); then
-			/usr/lib/lxc/lxc-net start
 			lxc_command_parse "start" "${MAIN_SNAP}" || die " Aborting : impossible to start the container ${MAIN_SNAP}" "clean_install"
-			
 			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'pacman -Syu' || out_info "WARNING : impossible to upgrade ${MAIN_SNAP} container" 
 			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'poweroff'
 			sleep 2 # be sure that the container is stopped, if not lxc-copy fail
