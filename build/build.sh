@@ -116,6 +116,9 @@ build(){
 	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}"\
 		-- bash -c 'chown -R "${newuser}":users "${build_dest_files}/${named}"'
 	
+	# by sure to use the last version of packages
+	lxc_command_parse "attach" "${named}-${named_version}" -- bash -c 'pacman -Sy'
+	
 	# build the package
 	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}"\
 		-- bash -c 'cd "${build_dest_files}/${named}"; su "${newuser}"  -c "updpkgsums; makepkg -Cfs --noconfirm"' || die " Something wrong happen at building the package" "clean_build"
