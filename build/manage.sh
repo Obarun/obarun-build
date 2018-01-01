@@ -56,6 +56,13 @@ manage(){
 		unset ret
 	fi
 	
+	# check if network is started
+	if [[ ! -f /run/lxc/network_up ]]; then
+		out_notvalid "The Network bridge is not created"
+		out_notvalid "As root you can create it with this command:"
+		out_notvalid "/usr/lib/lxc/lxc-net start"
+	fi
+	
 	_sw="${2}"
 	
 	# display or not the following line
