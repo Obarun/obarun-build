@@ -23,15 +23,9 @@ build(){
 	_args=( "${_args[@]:2}" )
 	
 	clean_build(){
-		lxc_command_parse "stop" "${named}-${named_version}" -k
-		out_action "Would you like to destroy the container ${named}-${named_version}? [y|n]"
-		reply_answer
-		if (( ! $? )); then
-			lxc_command_parse "destroy" "${named}-${named_version}"
-			rm -rf "${target}/${named}-${named_version}"
-		fi
-		out_valid "Restore your shell options"
-		shellopts_restore
+		named="${named}-${named_version}"
+		lxc_command_parse "stop" "${named}" -k
+		clean_install
 	}
 	
 	# check if sources variables is set
@@ -93,7 +87,9 @@ build(){
 			lxc_command_parse "start" "${MAIN_SNAP}" || die " Aborting : impossible to start the container ${MAIN_SNAP}" "clean_install"
 			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'pacman -Syu' || out_info "WARNING : impossible to upgrade ${MAIN_SNAP} container" 
 			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'poweroff'
-			sleep 2 # be sure that the container is stopped, if not lxc-copy fail
+			while lxc_command_parse "info" "${MAIN_SNAP}" -s|grep RUNNING >/dev/null; do
+				sleep 0.1
+			done # be sure that the container is stopped, if not lxc-copy fail
 		fi
 		lxc_command_parse "copy" "${MAIN_SNAP}" -N "${named}-${named_version}" -B overlay -s || die " Aborting : impossible to start the container ${named}-${named_version}" "clean_build"
 	else
@@ -105,23 +101,23 @@ build(){
 	lxc_command_parse "start" "${named}-${named_version}" || die " Aborting : impossible to start the container ${named}-${named_version}" "clean_build"
 			
 	# copy $SOURCES/$named files onto the container
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}"\
+	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
 		-- bash -c 'su "${newuser}"  -c "mkdir -p ${build_dest_files}"' || die " Impossible to create ${BUILD_DEST_FILES} directory" "clean_build"
 	
 	cp -a "${SOURCES}/${named}" "${target}/${named}-${named_version}/${workdir}/${BUILD_DEST_FILES}/${named}-${named_version}" || die " Impossible to copy file from ${SOURCES}/${named}" "clean_build"
 		
 	# give a good permissions at the tmp/$named onto the container
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}"\
+	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" \
 		-- bash -c 'echo "${newuser}" "ALL=(ALL)" NOPASSWD: ALL >> /etc/sudoers'
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}"\
+	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
 		-- bash -c 'chown -R "${newuser}":users "${build_dest_files}/${named}"'
 	
 	# by sure to use the last version of packages
 	lxc_command_parse "attach" "${named}-${named_version}" -- bash -c 'pacman -Sy'
 	
 	# build the package
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}"\
-		-- bash -c 'cd "${build_dest_files}/${named}"; su "${newuser}"  -c "updpkgsums; makepkg -Cfs --noconfirm"' || die " Something wrong happen at building the package" "clean_build"
+	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
+		-- bash -c 'cd "${build_dest_files}/${named}"; su "${newuser}"  -c "updpkgsums; makepkg -Cfs --noconfirm"' || die " Unable to build the package" "clean_build"
 	
 	# copy the resulting package on the right place
 	check_dir "${SAVE_PKG}/${named}/${named_version}"

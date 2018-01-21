@@ -17,7 +17,7 @@ clean_install(){
 	kill_process "haveged dirmngr gpg-agent"
 	
 	if [[ -n "${named}" ]]; then
-		if [[ -d "${TARGET}/${named}" ]]; then
+		if [[ -d "${TARGET}/${named}" ]] || [[ -d "${LXC_CONF}/${named}" ]]; then
 			mount_umount "${TARGET}/${named}/${WORKDIR}/rootfs" "umount"
 			out_action "Would you like to destroy the container ${named}? [y|n]"
 			reply_answer
