@@ -117,7 +117,7 @@ build(){
 	
 	# build the package
 	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
-		-- bash -c 'cd "${build_dest_files}/${named}"; su "${newuser}"  -c "updpkgsums; makepkg -Cfs --noconfirm"' || die " Unable to build the package" "clean_build"
+		-- bash -c 'su "${newuser}"  -c "cd "${build_dest_files}/${named}" && updpkgsums && makepkg -Cfs --noconfirm"' || die " Unable to build the package" "clean_build"
 	
 	# copy the resulting package on the right place
 	check_dir "${SAVE_PKG}/${named}/${named_version}"
