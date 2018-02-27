@@ -66,9 +66,12 @@ create_dir(){
 
 pac_file(){
 	
-	if [[ -d /etc/pacman.d/gnupg && ! -d $CONT_ROOTFS/etc/pacman.d/gnupg ]]; then
+	if [[ ! -d "${GPG_DIR}" ]];then
+		check_gpg "${GPG_DIR}"
+	fi
+	if [[ ! -d $CONT_ROOTFS/etc/pacman.d/gnupg ]]; then
 		out_action "Copying gnupg directory"
-		cp -a /etc/pacman.d/gnupg "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy gnupg directory" 
+		cp -a "${GPG_DIR}" "${CONT_ROOTFS}/etc/pacman.d/" || die " Impossible to copy gnupg directory" 
 	fi
 	
 	out_action "Copying mirrorlist"
