@@ -1,5 +1,15 @@
 Changelog for obarun-build
 
+In 0.1.5
+--------
+
+	- Bugs fix
+	- Fix gpg directory creation
+	- Start network automatically when use of manage command
+	- Always use the last version of package to build a package 
+	inside the container
+	- Allow to stop the build process
+	
 In 0.1.4
 --------
 	- Bugs fix
