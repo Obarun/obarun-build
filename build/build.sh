@@ -85,7 +85,7 @@ build(){
 		reply_answer
 		if (( ! $? )); then
 			lxc_command_parse "start" "${MAIN_SNAP}" || die " Aborting : impossible to start the container ${MAIN_SNAP}" "clean_install"
-			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'pacman -Syu' || out_info "WARNING : impossible to upgrade ${MAIN_SNAP} container" 
+			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'pacman -Syyu' || out_info "WARNING : impossible to upgrade ${MAIN_SNAP} container" 
 			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'poweroff'
 			while lxc_command_parse "info" "${MAIN_SNAP}" -s|grep RUNNING >/dev/null; do
 				sleep 0.1
@@ -113,7 +113,7 @@ build(){
 		-- bash -c 'chown -R "${newuser}":users "${build_dest_files}/${named}"'
 	
 	# by sure to use the last version of packages
-	lxc_command_parse "attach" "${named}-${named_version}" -- bash -c 'pacman -Sy'
+	lxc_command_parse "attach" "${named}-${named_version}" -- bash -c 'pacman -Syy'
 	
 	# build the package
 	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
