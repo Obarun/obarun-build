@@ -66,6 +66,15 @@ if [[ -z "${1}" || -z "${2}" ]] && [[ "${1}" != @(M|m|Manage) ]]; then
 	exit 1
 fi
 
+# check if cgroup devices exist
+# if not create it
+if [[ ! -d /sys/fs/cgroup/devices ]]; then
+	mount -o remount,rw /sys/fs/cgroup
+	mkdir /sys/fs/cgroup/devices
+	mount -t cgroup devices -o devices /sys/fs/cgroup/devices
+	mount -o remount,ro /sys/fs/cgroup
+fi
+
 cmd=( "${@}" )
 operation=( "${cmd[0]}" )
 target=( "${cmd[1]}" )
