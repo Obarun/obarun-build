@@ -9,6 +9,15 @@
 # except according to the terms contained in the LICENSE file.
 
 LIBRARY=${LIBRARY:-'/usr/lib/obarun'}
+
+TEMPLATES="${TEMPLATES:-/usr/share/obarun/obarun-build/templates}"
+TARGET="${TARGET:-/var/cache/obarun/pkgbuild}"
+SAVE_PKG="${SAVE_PKG:-/var/cache/obarun/pkg}"
+WORKDIR="container"
+WORKCONF="config"
+WORKLXC="${WORKLXC:-/var/lib/lxc}"
+BUILD_DEST_FILES="/home/${NEWUSER}/tmp"
+
 sourcing(){
 	
 	local list
@@ -20,14 +29,6 @@ sourcing(){
 	unset list
 }
 sourcing
-
-TEMPLATES="${TEMPLATES:-/usr/share/obarun/obarun-build/templates}"
-TARGET="${TARGET:-/var/cache/obarun/pkgbuild}"
-SAVE_PKG="${SAVE_PKG:-/var/cache/obarun/pkg}"
-WORKDIR="container"
-WORKCONF="config"
-LXC_CONF="/var/lib/lxc/"
-BUILD_DEST_FILES="/home/${NEWUSER}/tmp"
 
 parse_create(){
 		
