@@ -1,5 +1,13 @@
 Changelog for obarun-build
 
+In 0.1.6
+--------
+	
+	- Allow to change the working lxc-* tools directory
+	- Fix creation of devices cgroup
+	- Follow change of new lxc 3.0.0 version
+	- Force to update the pacman database
+	
 In 0.1.5
 --------
 
