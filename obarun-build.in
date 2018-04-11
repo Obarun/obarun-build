@@ -66,6 +66,14 @@ if [[ -z "${1}" || -z "${2}" ]] && [[ "${1}" != @(M|m|Manage) ]]; then
 	exit 1
 fi
 
+TEMPLATES="${TEMPLATES:-/usr/share/obarun/obarun-build/templates}"
+TARGET="${TARGET:-/var/cache/obarun/pkgbuild}"
+SAVE_PKG="${SAVE_PKG:-/var/cache/obarun/pkg}"
+WORKDIR="container"
+WORKCONF="config"
+WORKLXC="${WORKLXC:-/var/lib/lxc}"
+BUILD_DEST_FILES="/home/${NEWUSER}/tmp"
+
 # check if cgroup devices exist
 # if not create it
 if [[ ! -d /sys/fs/cgroup/devices ]]; then
@@ -73,6 +81,12 @@ if [[ ! -d /sys/fs/cgroup/devices ]]; then
 	mkdir /sys/fs/cgroup/devices
 	mount -t cgroup -o devices cgroup /sys/fs/cgroup/devices
 	mount -o remount,ro /sys/fs/cgroup
+fi
+
+#check if the worklxc directory exist
+#if not , create it
+if [[ -d "${WORKLXC}" ]];then
+	mkdir -p -m 0755 "${WORKLXC}"
 fi
 
 cmd=( "${@}" )
