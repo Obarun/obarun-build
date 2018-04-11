@@ -71,7 +71,7 @@ fi
 if [[ ! -d /sys/fs/cgroup/devices ]]; then
 	mount -o remount,rw /sys/fs/cgroup
 	mkdir /sys/fs/cgroup/devices
-	mount -t cgroup devices -o devices /sys/fs/cgroup/devices
+	mount -t cgroup -o devices cgroup /sys/fs/cgroup/devices
 	mount -o remount,ro /sys/fs/cgroup
 fi
 
