@@ -100,13 +100,13 @@ delete_container(){
 	_path="${1}"
 	_named="${2}"
 	
-	check_dir "${LXC_CONF}/${_named}"
+	check_dir "${WORKLXC}/${_named}"
 	if (( ! $? )); then
-		stat=$(lxc_command_parse "info" "${_named}" "-s" | awk -F':' '{ print $2 }' | sed 's: ::g' )
+		stat=$(lxc_command_parse "info" "${_named}" "-s" -P "${WORKLXC}" | awk -F':' '{ print $2 }' | sed 's: ::g' )
 		if [[ "${stat}" == "RUNNING" ]];then
-			lxc_command_parse "stop" "${_named}" "-k"
+			lxc_command_parse "stop" "${_named}" "-k" -P "${WORKLXC}"
 		fi
-		lxc_command_parse "destroy" "${_named}"
+		lxc_command_parse "destroy" "${_named}" -P "${WORKLXC}"
 	fi
 	
 	rm -rf "${_path}/${_named}" || die " Impossible to remove ${TARGET}/${named}"

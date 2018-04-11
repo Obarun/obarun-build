@@ -26,7 +26,7 @@ TARGET="${TARGET:-/var/cache/obarun/pkgbuild}"
 SAVE_PKG="${SAVE_PKG:-/var/cache/obarun/pkg}"
 WORKDIR="container"
 WORKCONF="config"
-LXC_CONF="/var/lib/lxc/"
+WORKLXC="${WORKLXC:-/var/lib/lxc}"
 BUILD_DEST_FILES="/home/${NEWUSER}/tmp"
 
 parse_create(){

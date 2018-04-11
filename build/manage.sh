@@ -15,7 +15,7 @@ manage(){
 	local ans ans_command ans_full parse_ans named _sw sw empty_named pick container_exist ret
 	local -a container_list
 	named="${1}"
-	container_list=( $(lxc-ls -1 2>/dev/null) )
+	container_list=( $(lxc-ls -P "${WORKLXC}" -1 2>/dev/null) )
 	
 	
 	check_existing_container(){
@@ -116,11 +116,11 @@ manage(){
 				else
 					if [[ "${ans_command}" == @(ls|autostart|checkconfig|top|usernsexec) ]]; then
 						# eval here can be dangerous, need to find a turn around
-						eval lxc-"${ans_command}" "${ans_full[@]}"
+						eval lxc-"${ans_command}" -P "${WORKLXC}" "${ans_full[@]}"
 						(( ! $? )) || out_info "Warning : the command failed, see above"
 					else
 						# eval here can be dangerous, need to find a turn around
-						eval lxc-"${ans_command}" -n "${named}" "${ans_full[@]}"
+						eval lxc-"${ans_command}" -n "${named}" -P "${WORKLXC}" "${ans_full[@]}"
 						# don't stop the script if the command fail, but warm it
 						(( ! $? )) || out_info "Warning : the command failed, see above"
 					fi

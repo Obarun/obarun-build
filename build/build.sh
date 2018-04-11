@@ -24,7 +24,7 @@ build(){
 	
 	clean_build(){
 		named="${named}-${named_version}"
-		lxc_command_parse "stop" "${named}" -k
+		lxc_command_parse "stop" "${named}" -k -P "${WORKLXC}"
 		clean_install
 	}
 	
@@ -76,47 +76,47 @@ build(){
 		fi
 		
 		# now we are sure to use snap
-		# change TARGET variable to LXC_CONF and workdir to delta0 directory
-		target="${LXC_CONF}"
+		# change TARGET variable to WORKLXC and workdir to delta0 directory
+		target="${WORKLXC}"
 		workdir="delta0"
 		
 		#update the main container
 		out_action "Would you like upgrade the ${SNAP_CONT} container? [y|n]"
 		reply_answer
 		if (( ! $? )); then
-			lxc_command_parse "start" "${MAIN_SNAP}" || die " Aborting : impossible to start the container ${MAIN_SNAP}" "clean_install"
-			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'pacman -Syyu' || out_info "WARNING : impossible to upgrade ${MAIN_SNAP} container" 
-			lxc_command_parse "attach" "${MAIN_SNAP}" -- bash -c 'poweroff'
-			while lxc_command_parse "info" "${MAIN_SNAP}" -s|grep RUNNING >/dev/null; do
+			lxc_command_parse "start" "${MAIN_SNAP}" -P "${WORKLXC}" || die " Aborting : impossible to start the container ${MAIN_SNAP}" "clean_install"
+			lxc_command_parse "attach" "${MAIN_SNAP}" -P "${WORKLXC}" -- bash -c 'pacman -Syyu' || out_info "WARNING : impossible to upgrade ${MAIN_SNAP} container" 
+			lxc_command_parse "attach" "${MAIN_SNAP}" -P "${WORKLXC}" -- bash -c 'poweroff'
+			while lxc_command_parse "info" "${MAIN_SNAP}" -P "${WORKLXC}" -s |grep RUNNING >/dev/null; do
 				sleep 0.1
 			done # be sure that the container is stopped, if not lxc-copy fail
 		fi
-		lxc_command_parse "copy" "${MAIN_SNAP}" -N "${named}-${named_version}" -B overlay -s || die " Aborting : impossible to start the container ${named}-${named_version}" "clean_build"
+		lxc_command_parse "copy" "${MAIN_SNAP}" -N "${named}-${named_version}" -P "${WORKLXC}" -B overlay -s || die " Aborting : impossible to start the container ${named}-${named_version}" "clean_build"
 	else
 		# create the container
 		create "${named}-${named_version}" "${_args[@]}"
 	fi
 
 	# start the container
-	lxc_command_parse "start" "${named}-${named_version}" || die " Aborting : impossible to start the container ${named}-${named_version}" "clean_build"
+	lxc_command_parse "start" "${named}-${named_version}" -P "${WORKLXC}" || die " Aborting : impossible to start the container ${named}-${named_version}" "clean_build"
 			
 	# copy $SOURCES/$named files onto the container
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
+	lxc_command_parse "attach" "${named}-${named_version}" -P "${WORKLXC}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
 		-- bash -c 'su "${newuser}"  -c "mkdir -p ${build_dest_files}"' || die " Impossible to create ${BUILD_DEST_FILES} directory" "clean_build"
 	
 	cp -a "${SOURCES}/${named}" "${target}/${named}-${named_version}/${workdir}/${BUILD_DEST_FILES}/${named}-${named_version}" || die " Impossible to copy file from ${SOURCES}/${named}" "clean_build"
 		
 	# give a good permissions at the tmp/$named onto the container
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" \
+	lxc_command_parse "attach" "${named}-${named_version}" -P "${WORKLXC}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" \
 		-- bash -c 'echo "${newuser}" "ALL=(ALL)" NOPASSWD: ALL >> /etc/sudoers'
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
+	lxc_command_parse "attach" "${named}-${named_version}" -P "${WORKLXC}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
 		-- bash -c 'chown -R "${newuser}":users "${build_dest_files}/${named}"'
 	
 	# by sure to use the last version of packages
-	lxc_command_parse "attach" "${named}-${named_version}" -- bash -c 'pacman -Syy'
+	lxc_command_parse "attach" "${named}-${named_version}" -P "${WORKLXC}" -- bash -c 'pacman -Syy'
 	
 	# build the package
-	lxc_command_parse "attach" "${named}-${named_version}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
+	lxc_command_parse "attach" "${named}-${named_version}" -P "${WORKLXC}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
 		-- bash -c 'su "${newuser}"  -c "cd "${build_dest_files}/${named}" && updpkgsums && makepkg -Cfs --noconfirm"' || die " Unable to build the package" "clean_build"
 	
 	# copy the resulting package on the right place
@@ -128,12 +128,12 @@ build(){
 	chown -R "${OWNER}":users "${SAVE_PKG}/${named}/${named_version}"
 	
 	# stop the container
-	lxc_command_parse "stop" "${named}-${named_version}" -k || die " Impossible to stop the container" "clean_build"
+	lxc_command_parse "stop" "${named}-${named_version}" -P "${WORKLXC}" -k || die " Impossible to stop the container" "clean_build"
 	
 	out_action "Would you like to destroy the container? [y|n]"
 	reply_answer
 	if (( ! $? )); then
-		lxc_command_parse "destroy" "${named}-${named_version}" && rm -rf "${target}/${named}-${named_version}"
+		lxc_command_parse "destroy" "${named}-${named_version}" -P "${WORKLXC}" && rm -rf "${target}/${named}-${named_version}"
 	fi
 }
 
