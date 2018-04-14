@@ -16,7 +16,7 @@ create(){
 	local file named
 	local -a file_list _args
 	
-	mapfile -t file_list < <(ls --group-directories-first ${TEMPLATES}/*)
+	file_list=$(find ${TEMPLATES} -mindepth 1)
 	
 	named="${1}"
 	_args=( "${@}" )
@@ -40,7 +40,7 @@ create(){
 	mkdir -p "${TARGET}/${named}/${WORKCONF}" || die " Impossible to create directory ${TARGET}/${named}/${WORKCONF}" "clean_install"
 	
 	# copy configuration file to $TARGET
-	for file in "${file_list[@]}"; do
+	for file in ${file_list[@]}; do
 		file=${file##*/}
 		out_action "Copy ${file} templates file to ${TARGET}/${named}/${WORKCONF}"
 		cp "${TEMPLATES}/${file}" "${TARGET}/${named}/${WORKCONF}" || die " Impossible to copy ${file}" "clean_install"
@@ -57,6 +57,7 @@ create(){
 		echo WORKCONF :: "${WORKCONF}"
 	}
 	#check_var
+	exec 3>&1
 	lxc_command_parse "create" "${named}" -t "${TARGET}/${named}/${WORKCONF}/create" -P "${WORKLXC}" "${_args[@]}" || die " Impossible to create the container" "clean_install"
 	
 }

@@ -12,6 +12,9 @@
 
 # functions file for obarun-build package
 
+exec 1>&3
+exec >&3-
+
 sourcing(){
 	
 	local list
