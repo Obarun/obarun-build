@@ -1,5 +1,11 @@
 Changelog for obarun-build
 
+In 0.1.7
+--------
+	
+	- Bugs fix
+	- Fix killing shell
+	
 In 0.1.6
 --------
 	
