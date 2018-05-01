@@ -1,4 +1,4 @@
-#!@BINDIR@/bash
+#!/usr/bin/bash
 # Copyright (c) 2015-2018 Eric Vidal <eric@obarun.org>
 # All rights reserved.
 # 
@@ -46,7 +46,7 @@ lxc_command_parse(){
 	
 	command="${1}"
 	parse_opt=( "${@}" )
-
+	
 	
 	# check if lxc-${command} exist
 	check_lxc_command "${command}"
@@ -54,7 +54,7 @@ lxc_command_parse(){
 	if (( ! $? )); then
 		if [[ "${command}" == @(ls|autostart|checkconfig|top|usernsexec) ]]; then
 			rest_opt=( "${parse_opt[@]:1}" )
-			(lxc-${command} "${rest_opt[@]}") || return 1 
+			(lxc-"${command}" "${rest_opt[@]}") || return 1 
 		else
 			if [[ -z "${parse_opt[1]}" ]]; then
 				out_error "name must not be empty"
@@ -66,7 +66,7 @@ lxc_command_parse(){
 				out_notvalid "Trying to shutdown ${named}, this may take time..."
 			fi
 			rest_opt=( "${parse_opt[@]:2}" )
-			(lxc-${command} -n "${parse_opt[1]}" "${rest_opt[@]}") || return 1 
+			(lxc-"${command}" -n "${parse_opt[1]}" "${rest_opt[@]}") || return 1 
 		fi
 	else
 		die " lxc-${command} doesn't exist" "clean_install"

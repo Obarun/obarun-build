@@ -32,7 +32,10 @@ save_pkg(){
 		mkdir -p "${SAVE_PKG}/${_named}/${_named_version}"
 	fi
 	out_valid "Copy $(ls ${target}/${base_named}-${base_named_version}/${workdir}/${BUILD_DEST_FILES}/${_named}-${_named_version}|grep .pkg.tar.xz) to ${SAVE_PKG}/${_named}/${_named_version}" 
-	cp -f "${target}/${base_named}-${base_named_version}/${workdir}/${BUILD_DEST_FILES}/${_named}-${_named_version}"/*.pkg.tar.xz "${SAVE_PKG}/${_named}/${_named_version}" || out_info "WARNING : the resulting package can be copied to ${SAVE_PKG}/${_named}/${_named_version}"
+	if ! cp -f "${target}/${base_named}-${base_named_version}/${workdir}/${BUILD_DEST_FILES}/${_named}-${_named_version}"/*.pkg.tar.xz "${SAVE_PKG}/${_named}/${_named_version}";then
+		out_info "WARNING : the resulting package can be copied to ${SAVE_PKG}/${_named}/${_named_version}"
+		return 1
+	fi
 	chown -R "${OWNER}":users "${SAVE_PKG}/${_named}/${_named_version}"
 	
 	unset base_named base_named_version _named _named_version
@@ -55,6 +58,26 @@ set_pkgver_rel(){
 	pnver="${ver}-${rel}"
 	
 	unset _named  ver rel
+}
+make_pkgconf(){
+	local _makedest="${1}" _newuser="${2}" dest="${3}" _named="${4}"
+	exec 3>&1 1>"${_makedest}"/makedest.sh
+cat <<EOF
+#!/usr/bin/bash
+trap "exit 1" INT TERM KILL
+echo "${_newuser} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+chown -R ${_newuser}:users ${dest}
+pacman -Sy || exit 1
+cd ${dest}/${_named}
+su ${_newuser} -c "updpkgsums" || exit 1
+su ${_newuser} -c "makepkg -Cfis --noconfirm --nosign" || exit 1
+#for i in \$(ls |grep ".pkg.tar.xz"|grep -v ".sig");do 
+#pacman -U \$i --noconfirm;
+#done
+EOF
+	exec 1>&3 3>&-
+	chmod +x "${_makedest}"/makedest.sh
+	unset _newuser dest _named
 }
 build(){
 	local named snap target workdir tidy_loop named_version named_versionlist
@@ -80,26 +103,34 @@ build(){
 	fi
 	
 	# be sure that $named exist on $SOURCES directory
-	check_source "${named}"
 	if(( ${#_args} )); then
 		for tidy_loop in "${_args[@]}"; do
 			check_source "${tidy_loop}"
+			if (( $? )); then
+				die "${tidy_loop} do not exist on ${SOURCES} directory" "clean_install"
+			fi
 		done
+	else
+		check_source "${named}"
+		if (( $? )); then
+			die "${named} do not exist on ${SOURCES} directory" "clean_install"
+		fi
 	fi
 	
-	#check_dir "${SOURCES}/${named}"
-	#if (( $? )); then
-	#	die "${named} do not exist on ${SOURCES} directory" "clean_install"
-	#fi
-	
 	# be sure that a PKGBUILD file exit on $SOURCES/$named
-	check_pkgbuild "${named}"
 	if(( ${#_args} )); then
 		for tidy_loop in "${_args[@]}"; do
 			check_pkgbuild "${tidy_loop}"
+			if (( $? )); then
+				die "Unable to find PKGBUILD for ${tidy_loop}" "clean_install"
+			fi
 		done
+	else
+		check_pkgbuild "${named}"
+		if (( $? )); then
+			die "Unable to find PKGBUILD for ${named}" "clean_install"
+		fi
 	fi
-	
 	# retrieve pkgver and pkgrel to implemente them onto the name
 	set_pkgver_rel "${named}" named_version 
 			
@@ -132,82 +163,55 @@ build(){
 		out_action "Would you like to upgrade the ${SNAP_CONT} container? [y|n]"
 		reply_answer
 		if (( ! $? )); then
-			lxc_command_parse "start" "${MAIN_SNAP}" -P "${WORKLXC}" || die " Unable to start the container ${MAIN_SNAP}" "clean_install"
-
-			lxc_command_parse "attach" "${MAIN_SNAP}" -P "${WORKLXC}" -- bash -c 'pacman -Syyu' \
-			|| lxc_command_parse "attach" "${MAIN_SNAP}" -P "${WORKLXC}" -- bash -c 'poweroff' \
-			&& die "Unable to upgrade ${MAIN_SNAP} container" "clean_build"
-
-			lxc_command_parse "attach" "${MAIN_SNAP}" -P "${WORKLXC}" -- bash -c 'poweroff'
-			while lxc_command_parse "info" "${MAIN_SNAP}" -P "${WORKLXC}" -s |grep RUNNING >/dev/null; do
-				sleep 0.1
-			done # be sure that the container is stopped, if not lxc-copy fail
+			lxc_command_parse "execute" "${MAIN_SNAP}" -P "${WORKLXC}" -f "${target}"/"${MAIN_SNAP}"/config -- pacman -Syyu --noconfirm || die "Unable to upgrade ${MAIN_SNAP} container" "clean_build" 
 		fi
-		lxc_command_parse "copy" "${MAIN_SNAP}" -N "${named}-${named_version}" -P "${WORKLXC}" -B overlay -s || die " Unable to copy the container ${named}-${named_version}" "clean_build"
+		lxc_command_parse "copy" "${MAIN_SNAP}" -N "${named}-${named_version}" -P "${target}" -B overlay -s || die " Unable to copy the container ${named}-${named_version}" "clean_build"
 	else
 		# create the container
 		create "${named}-${named_version}"
 	fi
-
-	# start the container
-	lxc_command_parse "start" "${named}-${named_version}" -P "${WORKLXC}" || die " Aborting : impossible to start the container ${named}-${named_version}" "clean_build"
-			
-	# copy $SOURCES/$named files onto the container
-	lxc_command_parse "attach" "${named}-${named_version}" -P "${WORKLXC}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
-		-- bash -c 'su "${newuser}"  -c "mkdir -p ${build_dest_files}"' || die " Impossible to create ${BUILD_DEST_FILES} directory" "clean_build"
 	
+	mkdir -p -m 0755 "${target}/${named}-${named_version}/${workdir}/${BUILD_DEST_FILES}/"
 	cp -a "${SOURCES}/${named}" "${target}/${named}-${named_version}/${workdir}/${BUILD_DEST_FILES}/${named}-${named_version}" || die " Unable to copy file from ${SOURCES}/${named}" "clean_build"
+
 	if(( ${#_args} )); then
 		for tidy_loop in "${_args[@]}"; do
 			set_pkgver_rel "${tidy_loop}" named_versionlist 
 			cp -a "${SOURCES}/${tidy_loop}" "${target}/${named}-${named_version}/${workdir}/${BUILD_DEST_FILES}/${tidy_loop}-${named_versionlist}" || die " Unable to copy file from ${SOURCES}/${tidy_loop}" "clean_build"
 		done
 	fi
-	# give a good permissions at the tmp/$named onto the container
-	lxc_command_parse "attach" "${named}-${named_version}" -P "${WORKLXC}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" \
-		-- bash -c 'echo "${newuser}" "ALL=(ALL)" NOPASSWD: ALL >> /etc/sudoers'
-	lxc_command_parse "attach" "${named}-${named_version}" -P "${WORKLXC}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
-		-- bash -c 'chown -R "${newuser}":users "${build_dest_files}/${named}"'
-	if(( ${#_args} )); then
-		for tidy_loop in "${_args[@]}"; do
-			set_pkgver_rel "${tidy_loop}" named_versionlist 
-			lxc_command_parse "attach" "${named}-${named_version}" -P "${WORKLXC}" --clear-env -v named="${tidy_loop}-${named_versionlist}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
-				-- bash -c 'chown -R "${newuser}":users "${build_dest_files}/${named}"'
-		done
-	fi
-	# by sure to use the last version of packages
-	lxc_command_parse "attach" "${named}-${named_version}" -P "${WORKLXC}" -- bash -c 'pacman -Syy' || die "Unable to upgrade the container" "clean_build"
 	
-	# build the package
-	lxc_command_parse "attach" "${named}-${named_version}" -P "${WORKLXC}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
-		-- bash -c 'su "${newuser}" -c "cd "${build_dest_files}/${named}" && updpkgsums && makepkg -Cfs --noconfirm"' || die " Unable to build the package" "clean_build"
+	#build the package
+	make_pkgconf "${target}/${named}-${named_version}/${workdir}/${BUILD_DEST_FILES}" "${NEWUSER}" "${BUILD_DEST_FILES}" "${named}-${named_version}"
+	lxc_command_parse "start" "${named}-${named_version}" -P "${WORKLXC}" || die " Aborting : impossible to start the container ${named}-${named_version}" "clean_build"
+	lxc_command_parse "attach" "${named}-${named_version}" -P "${WORKLXC}" -v build_dest_files="${BUILD_DEST_FILES}" -- bash -c '"${build_dest_files}"/makedest.sh' || die "Unable to build package ${named}-${named_version}" "clean_build"
+	
 	# copy the resulting package on the right place
-	save_pkg "${named}" "${named_version}" "${named}" "${named_version}"
+	if  ! save_pkg "${named}" "${named_version}" "${named}" "${named_version}"; then
+		die "Unable to save compiled package" "clean_build"
+	fi
 	
 	# install and build the list of package
 	if(( ${#_args} )); then
-		lxc_command_parse "attach" "${named}-${named_version}" -P "${WORKLXC}" --clear-env -v named="${named}-${named_version}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
-			-- bash -c 'cd "${build_dest_files}/${named}";for i in $(ls |grep ".pkg.tar.xz"|grep -v ".sig");do pacman -U $i --noconfirm;done' || die " Unable to install the package ${named}" "clean_build"
 		for tidy_loop in "${_args[@]}"; do
 			set_pkgver_rel "${tidy_loop}" named_versionlist 
 			#build the package
-			lxc_command_parse "attach" "${named}-${named_version}" -P "${WORKLXC}" --clear-env -v named="${tidy_loop}-${named_versionlist}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
-				-- bash -c 'su "${newuser}"  -c "cd "${build_dest_files}/${named}" && updpkgsums && makepkg -Cfs --noconfirm"' || die " Unable to build the package ${tidy_loop}" "clean_build"
-			#install the package
-			lxc_command_parse "attach" "${named}-${named_version}" -P "${WORKLXC}" --clear-env -v named="${tidy_loop}-${named_versionlist}" -v newuser="${NEWUSER}" -v build_dest_files="${BUILD_DEST_FILES}" \
-				-- bash -c 'cd "${build_dest_files}/${named}";for i in $(ls |grep ".pkg.tar.xz"|grep -v ".sig");do pacman -U $i --noconfirm;done' || die " Unable to install the package ${tidy_loop}" "clean_build"
+			make_pkgconf "${target}/${named}-${named_version}/${workdir}/${BUILD_DEST_FILES}"	"${NEWUSER}" "${BUILD_DEST_FILES}" "${tidy_loop}-${named_versionlist}"
+			lxc_command_parse "attach" "${named}-${named_version}" -P "${WORKLXC}" -v build_dest_files="${BUILD_DEST_FILES}" -- bash -c '"${build_dest_files}"/makedest.sh' || die "Unable to build package ${tidy_loop}-${named_versionlist}" "clean_build"
 			#save it
-			save_pkg "${named}" "${named_version}" "${tidy_loop}" "${named_versionlist}"
+			if ! save_pkg "${named}" "${named_version}" "${tidy_loop}" "${named_versionlist}"; then
+				die "Unable to save package" "clean_build"
+			fi
 		done
 	fi
 
 	# stop the container
-	lxc_command_parse "stop" "${named}-${named_version}" -P "${WORKLXC}" -k || die " Impossible to stop the container" "clean_build"
-	
+	if ! lxc_command_parse "stop" "${named}-${named_version}" -P "${WORKLXC}" -k; then
+		die " Impossible to stop the container" "clean_build"
+	fi
 	out_action "Would you like to destroy the container? [y|n]"
 	reply_answer
 	if (( ! $? )); then
 		lxc_command_parse "destroy" "${named}-${named_version}" -P "${WORKLXC}" && rm -rf "${target}/${named}-${named_version}"
 	fi
 }
-
