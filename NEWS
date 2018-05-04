@@ -1,5 +1,17 @@
 Changelog for obarun-build
 
+In 0.1.9
+-------
+
+	- Bugs fix
+	- Install lxc inside the container to allow lxc-execute command
+
+In 0.1.8
+--------
+
+	- Bugs fix
+	- Fuck makepkg, create a sript file on the fly to build package
+	
 In 0.1.7
 --------
 	
