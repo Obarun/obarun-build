@@ -40,6 +40,7 @@ licenses
 #linux-headers
 #logrotate
 #lvm2
+lxc
 #man-db
 #man-pages
 #mdadm
